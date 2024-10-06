@@ -8,7 +8,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type dbConfig struct {
+type DBConfig struct {
 	Password string
 	User     string
 	DB       string
@@ -19,7 +19,7 @@ type dbConfig struct {
 
 type Config struct {
 	Port string
-	DB   dbConfig
+	DB   DBConfig
 }
 
 // https://github.com/joho/godotenv?tab=readme-ov-file#precedence--conventions
@@ -79,7 +79,7 @@ func LoadConfig() (Config, error) {
 		log.Println("env vars loaded from", f)
 	}
 
-	dbCfg := dbConfig{
+	dbCfg := DBConfig{
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 		User:     os.Getenv("POSTGRES_USER"),
 		DB:       os.Getenv("POSTGRES_DB"),

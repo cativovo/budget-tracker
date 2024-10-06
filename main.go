@@ -2,22 +2,14 @@ package main
 
 import (
 	"context"
-	"embed"
-	"fmt"
 	"log"
 	"net/http"
 
 	"github.com/cativovo/budget-tracker/internal/config"
 	"github.com/cativovo/budget-tracker/internal/store"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/pressly/goose/v3"
 )
-
-//go:embed internal/store/migrations/*.sql
-var embedMigrations embed.FS
 
 func main() {
 	cfg, err := config.LoadConfig()
@@ -25,30 +17,15 @@ func main() {
 		log.Fatal(err)
 	}
 
-	connString := fmt.Sprintf(
-		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
-		cfg.DB.User, cfg.DB.Password, cfg.DB.Host, cfg.DB.Port, cfg.DB.DB, cfg.DB.SSL,
-	)
-	dbpool, err := pgxpool.New(context.Background(), connString)
+	dbpool, err := store.InitDB(context.Background(), cfg.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer dbpool.Close()
 
-	if err := goose.SetDialect("postgres"); err != nil {
-		log.Fatal(err)
-	}
-
-	goose.SetBaseFS(embedMigrations)
-	db := stdlib.OpenDBFromPool(dbpool)
-	if err := goose.Up(db, "internal/store/migrations"); err != nil {
-		log.Fatal(err)
-	}
-
-	e := echo.New()
-
 	queries := store.New(dbpool)
 
+	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.GET("/", hello1(queries))
