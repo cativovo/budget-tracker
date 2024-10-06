@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/cativovo/budget-tracker/internal/config"
+	"github.com/cativovo/budget-tracker/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/labstack/echo/v4"
@@ -46,31 +47,91 @@ func main() {
 
 	e := echo.New()
 
+	queries := store.New(dbpool)
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.GET("/", hello(dbpool))
+	e.GET("/", hello1(queries))
+	e.POST("/", hello2(queries))
 
 	log.Fatal(e.Start(":" + cfg.Port))
 }
 
-func hello(dbpool *pgxpool.Pool) func(echo.Context) error {
+type expenseStore interface {
+	ListExpenses(ctx context.Context, arg store.ListExpensesParams) ([]store.ListExpensesRow, error)
+	CreateExpense(ctx context.Context, arg store.CreateExpenseParams) (store.CreateExpenseRow, error)
+}
+
+func hello1(es expenseStore) func(echo.Context) error {
 	return func(c echo.Context) error {
-		rows, err := dbpool.Query(c.Request().Context(), "select * from account")
+		accountID, err := store.NewUUID("d31d0b0a-f632-420d-a13e-ec093bef11b2")
 		if err != nil {
 			return err
 		}
 
-		for rows.Next() {
-			var id string
-			var name string
-			err := rows.Scan(&id, &name)
-			if err != nil {
-				return err
-			}
-
-			fmt.Println(id, name)
+		startDate, err := store.NewDate("2024-09-01")
+		if err != nil {
+			return err
 		}
 
-		return c.HTML(http.StatusOK, "hello world")
+		endDate, err := store.NewDate("2024-10-30")
+		if err != nil {
+			return err
+		}
+
+		expenses, err := es.ListExpenses(c.Request().Context(), store.ListExpensesParams{
+			AccountID: accountID,
+			StartDate: startDate,
+			EndDate:   endDate,
+		})
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusOK, expenses)
+	}
+}
+
+func hello2(es expenseStore) func(echo.Context) error {
+	return func(c echo.Context) error {
+		name := c.FormValue("name")
+		amount, err := store.NewNumeric(c.FormValue("amount"))
+		if err != nil {
+			return err
+		}
+
+		description, err := store.NewText(c.FormValue("description"))
+		if err != nil {
+			return err
+		}
+
+		date, err := store.NewDate(c.FormValue("date"))
+		if err != nil {
+			return err
+		}
+
+		categoryID, err := store.NewUUID(c.FormValue("category_id"))
+		if err != nil {
+			return err
+		}
+
+		accountID, err := store.NewUUID("d31d0b0a-f632-420d-a13e-ec093bef11b2")
+		if err != nil {
+			return err
+		}
+
+		expense, err := es.CreateExpense(c.Request().Context(), store.CreateExpenseParams{
+			Name:        name,
+			Amount:      amount,
+			Description: description,
+			Date:        date,
+			CategoryID:  categoryID,
+			AccountID:   accountID,
+		})
+		if err != nil {
+			return err
+		}
+
+		return c.JSON(http.StatusCreated, expense)
 	}
 }
