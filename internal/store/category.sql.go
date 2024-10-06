@@ -14,7 +14,7 @@ import (
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO category (name, icon, color_hex, account_id)
 VALUES ($1, $2, $3, $4)
-RETURNING id, name, icon, color_hex, created_at, updated_at, account_id
+RETURNING id, name, icon, color_hex
 `
 
 type CreateCategoryParams struct {
@@ -24,22 +24,26 @@ type CreateCategoryParams struct {
 	AccountID pgtype.UUID
 }
 
-func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error) {
+type CreateCategoryRow struct {
+	ID       pgtype.UUID
+	Name     string
+	Icon     string
+	ColorHex string
+}
+
+func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (CreateCategoryRow, error) {
 	row := q.db.QueryRow(ctx, createCategory,
 		arg.Name,
 		arg.Icon,
 		arg.ColorHex,
 		arg.AccountID,
 	)
-	var i Category
+	var i CreateCategoryRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Icon,
 		&i.ColorHex,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.AccountID,
 	)
 	return i, err
 }
@@ -100,7 +104,7 @@ const updateCategory = `-- name: UpdateCategory :one
 UPDATE category
 SET name=$1, icon=$2, color_hex=$3
 WHERE account_id=$4 AND id=$5
-RETURNING id, name, icon, color_hex, created_at, updated_at, account_id
+RETURNING id, name, icon, color_hex
 `
 
 type UpdateCategoryParams struct {
@@ -111,7 +115,14 @@ type UpdateCategoryParams struct {
 	ID        pgtype.UUID
 }
 
-func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error) {
+type UpdateCategoryRow struct {
+	ID       pgtype.UUID
+	Name     string
+	Icon     string
+	ColorHex string
+}
+
+func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (UpdateCategoryRow, error) {
 	row := q.db.QueryRow(ctx, updateCategory,
 		arg.Name,
 		arg.Icon,
@@ -119,15 +130,12 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		arg.AccountID,
 		arg.ID,
 	)
-	var i Category
+	var i UpdateCategoryRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
 		&i.Icon,
 		&i.ColorHex,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-		&i.AccountID,
 	)
 	return i, err
 }
