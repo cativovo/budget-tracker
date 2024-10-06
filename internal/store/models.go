@@ -20,6 +20,7 @@ type Category struct {
 	ColorHex  string
 	CreatedAt pgtype.Timestamp
 	UpdatedAt pgtype.Timestamp
+	AccountID pgtype.UUID
 }
 
 type Expense struct {

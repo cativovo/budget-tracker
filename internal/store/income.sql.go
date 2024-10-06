@@ -102,7 +102,7 @@ SELECT
 	category.icon as icon
 FROM income 
 LEFT JOIN category ON category.id = income.category_id
-WHERE account_id=$1 AND income.id=$2
+WHERE income.account_id=$1 AND income.id=$2
 `
 
 type GetIncomeParams struct {
@@ -151,8 +151,8 @@ SELECT
 	category.icon as icon
 FROM income 
 LEFT JOIN category ON category.id = income.category_id
-WHERE account_id=$1 AND date BETWEEN $2 AND $3
-ORDER BY date
+WHERE income.account_id=$1 AND income.date BETWEEN $2 AND $3
+ORDER BY income.date
 `
 
 type ListIncomesParams struct {
@@ -205,7 +205,7 @@ const updateIncome = `-- name: UpdateIncome :one
 WITH updated_income as (
 	UPDATE income
 	SET name=$1, description=$2, date=$3, category_id=$4
-	WHERE income.id=$5 AND account_id=$6
+	WHERE income.id=$5 AND income.account_id=$6
 	RETURNING id, name, amount, description, date, created_at, updated_at, category_id, account_id
 ) SELECT 
 	updated_income.id as id,

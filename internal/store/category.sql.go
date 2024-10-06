@@ -12,19 +12,25 @@ import (
 )
 
 const createCategory = `-- name: CreateCategory :one
-INSERT INTO category (name, icon, color_hex)
-VALUES ($1, $2, $3)
-RETURNING id, name, icon, color_hex, created_at, updated_at
+INSERT INTO category (name, icon, color_hex, account_id)
+VALUES ($1, $2, $3, $4)
+RETURNING id, name, icon, color_hex, created_at, updated_at, account_id
 `
 
 type CreateCategoryParams struct {
-	Name     string
-	Icon     string
-	ColorHex string
+	Name      string
+	Icon      string
+	ColorHex  string
+	AccountID pgtype.UUID
 }
 
 func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error) {
-	row := q.db.QueryRow(ctx, createCategory, arg.Name, arg.Icon, arg.ColorHex)
+	row := q.db.QueryRow(ctx, createCategory,
+		arg.Name,
+		arg.Icon,
+		arg.ColorHex,
+		arg.AccountID,
+	)
 	var i Category
 	err := row.Scan(
 		&i.ID,
@@ -33,39 +39,52 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 		&i.ColorHex,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AccountID,
 	)
 	return i, err
 }
 
 const deleteCategory = `-- name: DeleteCategory :exec
-DELETE FROM category WHERE id=$1
+DELETE FROM category WHERE account_id=$1 AND id=$2
 `
 
-func (q *Queries) DeleteCategory(ctx context.Context, id pgtype.UUID) error {
-	_, err := q.db.Exec(ctx, deleteCategory, id)
+type DeleteCategoryParams struct {
+	AccountID pgtype.UUID
+	ID        pgtype.UUID
+}
+
+func (q *Queries) DeleteCategory(ctx context.Context, arg DeleteCategoryParams) error {
+	_, err := q.db.Exec(ctx, deleteCategory, arg.AccountID, arg.ID)
 	return err
 }
 
 const listCategories = `-- name: ListCategories :many
-SELECT id, name, icon, color_hex, created_at, updated_at FROM category ORDER BY name
+SELECT id, name, icon, color_hex FROM category
+WHERE account_id=$1
+ORDER BY name
 `
 
-func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
-	rows, err := q.db.Query(ctx, listCategories)
+type ListCategoriesRow struct {
+	ID       pgtype.UUID
+	Name     string
+	Icon     string
+	ColorHex string
+}
+
+func (q *Queries) ListCategories(ctx context.Context, accountID pgtype.UUID) ([]ListCategoriesRow, error) {
+	rows, err := q.db.Query(ctx, listCategories, accountID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Category
+	var items []ListCategoriesRow
 	for rows.Next() {
-		var i Category
+		var i ListCategoriesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Name,
 			&i.Icon,
 			&i.ColorHex,
-			&i.CreatedAt,
-			&i.UpdatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -80,15 +99,16 @@ func (q *Queries) ListCategories(ctx context.Context) ([]Category, error) {
 const updateCategory = `-- name: UpdateCategory :one
 UPDATE category
 SET name=$1, icon=$2, color_hex=$3
-WHERE id=$4
-RETURNING id, name, icon, color_hex, created_at, updated_at
+WHERE account_id=$4 AND id=$5
+RETURNING id, name, icon, color_hex, created_at, updated_at, account_id
 `
 
 type UpdateCategoryParams struct {
-	Name     string
-	Icon     string
-	ColorHex string
-	ID       pgtype.UUID
+	Name      string
+	Icon      string
+	ColorHex  string
+	AccountID pgtype.UUID
+	ID        pgtype.UUID
 }
 
 func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) (Category, error) {
@@ -96,6 +116,7 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		arg.Name,
 		arg.Icon,
 		arg.ColorHex,
+		arg.AccountID,
 		arg.ID,
 	)
 	var i Category
@@ -106,6 +127,7 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		&i.ColorHex,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.AccountID,
 	)
 	return i, err
 }

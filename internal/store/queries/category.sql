@@ -1,16 +1,18 @@
 -- name: ListCategories :many
-SELECT * FROM category ORDER BY name;
+SELECT id, name, icon, color_hex FROM category
+WHERE account_id=$1
+ORDER BY name;
 
 -- name: CreateCategory :one
-INSERT INTO category (name, icon, color_hex)
-VALUES ($1, $2, $3)
+INSERT INTO category (name, icon, color_hex, account_id)
+VALUES ($1, $2, $3, $4)
 RETURNING *;
 
 -- name: UpdateCategory :one
 UPDATE category
 SET name=$1, icon=$2, color_hex=$3
-WHERE id=$4
+WHERE account_id=$4 AND id=$5
 RETURNING *;
 
 -- name: DeleteCategory :exec
-DELETE FROM category WHERE id=$1;
+DELETE FROM category WHERE account_id=$1 AND id=$2;

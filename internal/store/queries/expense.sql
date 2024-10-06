@@ -10,8 +10,8 @@ SELECT
 	category.icon as icon
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
-WHERE account_id=$1 AND date BETWEEN @start_date AND @end_date
-ORDER BY date;
+WHERE expense.account_id=$1 AND expense.date BETWEEN @start_date AND @end_date
+ORDER BY expense.date;
 
 -- name: GetExpense :one
 SELECT 
@@ -26,7 +26,7 @@ SELECT
 	category.icon as icon
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
-WHERE account_id=$1 AND expense.id=$2;
+WHERE category.account_id=$1 AND expense.id=$2;
 
 -- name: CreateExpense :one
 WITH inserted_expense as (
@@ -50,7 +50,7 @@ LEFT JOIN category ON category.id = inserted_expense.category_id;
 WITH updated_expense as (
 	UPDATE expense
 	SET name=$1, description=$2, date=$3, category_id=$4
-	WHERE expense.id=$5 AND account_id=$6
+	WHERE expense.id=$5 AND expense.account_id=$6
 	RETURNING *
 ) SELECT 
 	updated_expense.id as id,

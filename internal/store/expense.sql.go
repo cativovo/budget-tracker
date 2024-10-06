@@ -102,7 +102,7 @@ SELECT
 	category.icon as icon
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
-WHERE account_id=$1 AND expense.id=$2
+WHERE category.account_id=$1 AND expense.id=$2
 `
 
 type GetExpenseParams struct {
@@ -151,8 +151,8 @@ SELECT
 	category.icon as icon
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
-WHERE account_id=$1 AND date BETWEEN $2 AND $3
-ORDER BY date
+WHERE expense.account_id=$1 AND expense.date BETWEEN $2 AND $3
+ORDER BY expense.date
 `
 
 type ListExpensesParams struct {
@@ -205,7 +205,7 @@ const updateExpense = `-- name: UpdateExpense :one
 WITH updated_expense as (
 	UPDATE expense
 	SET name=$1, description=$2, date=$3, category_id=$4
-	WHERE expense.id=$5 AND account_id=$6
+	WHERE expense.id=$5 AND expense.account_id=$6
 	RETURNING id, name, amount, description, date, created_at, updated_at, category_id, account_id
 ) SELECT 
 	updated_expense.id as id,
