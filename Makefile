@@ -21,5 +21,5 @@ liveserver:
 live:
 	make -j3 livetempl liveesbuild liveserver
 
-sqlcgenerate:
-	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0 generate
+generate:
+	go generate ./...
