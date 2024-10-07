@@ -5,8 +5,10 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/a-h/templ"
 	"github.com/cativovo/budget-tracker/internal/config"
 	"github.com/cativovo/budget-tracker/internal/store"
+	"github.com/cativovo/budget-tracker/internal/ui/pages"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -28,8 +30,9 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-	e.GET("/", hello1(queries))
-	e.POST("/", hello2(queries))
+	e.GET("/", index)
+	e.GET("/hello1", hello1(queries))
+	e.POST("/hello2", hello2(queries))
 
 	log.Fatal(e.Start(":" + cfg.Port))
 }
@@ -39,9 +42,24 @@ type expenseStore interface {
 	CreateExpense(ctx context.Context, arg store.CreateExpenseParams) (store.CreateExpenseRow, error)
 }
 
+func Render(ctx echo.Context, statusCode int, t templ.Component) error {
+	buf := templ.GetBuffer()
+	defer templ.ReleaseBuffer(buf)
+
+	if err := t.Render(ctx.Request().Context(), buf); err != nil {
+		return err
+	}
+
+	return ctx.HTML(statusCode, buf.String())
+}
+
+func index(c echo.Context) error {
+	return Render(c, http.StatusOK, pages.Index())
+}
+
 func hello1(es expenseStore) func(echo.Context) error {
 	return func(c echo.Context) error {
-		accountID, err := store.NewUUID("d31d0b0a-f632-420d-a13e-ec093bef11b2")
+		accountID, err := store.NewUUID("52a4a56d-1ce0-4e77-92b9-e1051437ffee")
 		if err != nil {
 			return err
 		}
