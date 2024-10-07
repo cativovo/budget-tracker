@@ -9,7 +9,7 @@ livetempl:
 
 liveserver:
 	go run github.com/air-verse/air@v1.60.0 \
-	--build.cmd "go build -o ./tmp/bin/main ./cmd/server" --build.bin "./tmp/bin/main" --build.delay "100" \
+	--build.cmd "go build -o ./tmp/bin/main ./cmd/app" --build.bin "./tmp/bin/main" --build.delay "100" \
 	--build.exclude_dir "node_modules" \
 	--build.include_ext "go" \
 	--build.stop_on_error "false" \
