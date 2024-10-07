@@ -151,12 +151,16 @@ SELECT
 	category.icon as icon
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
-WHERE expense.account_id=$1 AND expense.date BETWEEN $2 AND $3
+WHERE expense.account_id=$1 AND expense.date BETWEEN $4 AND $5
 ORDER BY expense.date
+LIMIT $2
+OFFSET $3
 `
 
 type ListExpensesParams struct {
 	AccountID pgtype.UUID
+	Limit     int32
+	Offset    int32
 	StartDate pgtype.Date
 	EndDate   pgtype.Date
 }
@@ -173,7 +177,13 @@ type ListExpensesRow struct {
 }
 
 func (q *Queries) ListExpenses(ctx context.Context, arg ListExpensesParams) ([]ListExpensesRow, error) {
-	rows, err := q.db.Query(ctx, listExpenses, arg.AccountID, arg.StartDate, arg.EndDate)
+	rows, err := q.db.Query(ctx, listExpenses,
+		arg.AccountID,
+		arg.Limit,
+		arg.Offset,
+		arg.StartDate,
+		arg.EndDate,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -11,7 +11,9 @@ SELECT
 FROM expense 
 LEFT JOIN category ON category.id = expense.category_id
 WHERE expense.account_id=$1 AND expense.date BETWEEN @start_date AND @end_date
-ORDER BY expense.date;
+ORDER BY expense.date
+LIMIT $2
+OFFSET $3;
 
 -- name: GetExpense :one
 SELECT 

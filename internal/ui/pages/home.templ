@@ -2,15 +2,31 @@ package pages
 
 import "github.com/cativovo/budget-tracker/internal/ui/layouts"
 import "github.com/cativovo/budget-tracker/internal/store"
+import "github.com/cativovo/budget-tracker/internal/constants"
 
 type HomeProps struct {
-	Expenses []store.ListExpensesRow
+	Expenses    []store.ListExpensesRow
+	QueryParams string
 }
 
 templ Home(props HomeProps) {
 	@layouts.Main() {
-		for _, expense := range props.Expenses {
-			<li>{ expense.Name }</li>
-		}
+		<ul id="expenses">
+			for i, expense := range props.Expenses {
+				if i == len(props.Expenses)-1 {
+					<li
+						hx-get={ string(templ.URL("/?" + props.QueryParams)) }
+						hx-trigger="revealed"
+						hx-swap="afterend"
+						hx-select="#expenses>li"
+						hx-push-url="true"
+					>
+						{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }
+					</li>
+				} else {
+					<li>{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }</li>
+				}
+			}
+		</ul>
 	}
 }
