@@ -2,5 +2,5 @@
 .env.*
 !.env.sample
 tmp
-*_templ.txt
+*_templ.*
 node_modules
