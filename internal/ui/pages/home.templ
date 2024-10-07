@@ -13,19 +13,17 @@ templ Home(props HomeProps) {
 	@layouts.Main() {
 		<ul id="expenses">
 			for i, expense := range props.Expenses {
-				if i == len(props.Expenses)-1 {
-					<li
+				<li
+					if i == len(props.Expenses)-1 {
 						hx-get={ string(templ.URL("/?" + props.QueryParams)) }
 						hx-trigger="revealed"
 						hx-swap="afterend"
 						hx-select="#expenses>li"
 						hx-push-url="true"
-					>
-						{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }
-					</li>
-				} else {
-					<li>{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }</li>
-				}
+					}
+				>
+					{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }
+				</li>
 			}
 		</ul>
 	}
