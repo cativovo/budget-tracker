@@ -7,6 +7,9 @@ cleandb:
 livetempl:
 	templ generate --watch
 
+liveesbuild:
+	pnpm run esbuild:watch
+
 liveserver:
 	go run github.com/air-verse/air@v1.60.0 \
 	--build.cmd "go build -o ./tmp/bin/main ./cmd/app" --build.bin "./tmp/bin/main" --build.delay "100" \
@@ -16,7 +19,7 @@ liveserver:
 	--misc.clean_on_exit true
 
 live:
-	make -j2 livetempl liveserver
+	make -j3 livetempl liveesbuild liveserver
 
 sqlcgenerate:
 	go run github.com/sqlc-dev/sqlc/cmd/sqlc@v1.27.0 generate

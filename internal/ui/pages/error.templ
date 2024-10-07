@@ -1,0 +1,12 @@
+package pages
+
+import "strconv"
+
+type ErrorProps struct {
+	StatusCode int
+}
+
+templ Error(props ErrorProps) {
+	<h1>Budget Tracker currently unavailable</h1>
+	<h2>Error { strconv.Itoa(props.StatusCode) }</h2>
+}

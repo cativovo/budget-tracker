@@ -3,4 +3,4 @@
 !.env.sample
 tmp
 *_templ.txt
-
+node_modules

@@ -1,9 +1,16 @@
 package pages
 
 import "github.com/cativovo/budget-tracker/internal/ui/layouts"
+import "github.com/cativovo/budget-tracker/internal/store"
 
-templ Home() {
+type HomeProps struct {
+	Expenses []store.ListExpensesRow
+}
+
+templ Home(props HomeProps) {
 	@layouts.Main() {
-		<h1>eyyyy</h1>
+		for _, expense := range props.Expenses {
+			<li>{ expense.Name }</li>
+		}
 	}
 }
