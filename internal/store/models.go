@@ -23,26 +23,15 @@ type Category struct {
 	AccountID pgtype.UUID
 }
 
-type Expense struct {
-	ID          pgtype.UUID
-	Name        string
-	Amount      pgtype.Numeric
-	Description pgtype.Text
-	Date        pgtype.Date
-	CreatedAt   pgtype.Timestamp
-	UpdatedAt   pgtype.Timestamp
-	CategoryID  pgtype.UUID
-	AccountID   pgtype.UUID
-}
-
-type Income struct {
-	ID          pgtype.UUID
-	Name        string
-	Amount      pgtype.Numeric
-	Description pgtype.Text
-	Date        pgtype.Date
-	CreatedAt   pgtype.Timestamp
-	UpdatedAt   pgtype.Timestamp
-	CategoryID  pgtype.UUID
-	AccountID   pgtype.UUID
+type Transaction struct {
+	ID              pgtype.UUID
+	TransactionType int16
+	Name            string
+	Amount          pgtype.Numeric
+	Description     pgtype.Text
+	Date            pgtype.Date
+	CreatedAt       pgtype.Timestamp
+	UpdatedAt       pgtype.Timestamp
+	CategoryID      pgtype.UUID
+	AccountID       pgtype.UUID
 }

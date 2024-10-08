@@ -3,28 +3,53 @@ package pages
 import "github.com/cativovo/budget-tracker/internal/ui/layouts"
 import "github.com/cativovo/budget-tracker/internal/store"
 import "github.com/cativovo/budget-tracker/internal/constants"
+import "strconv"
 
 type HomeProps struct {
-	Expenses    []store.ListExpensesRow
-	QueryParams string
+	TransactionsWithCount store.ListTransactionsWithCountRow
+	QueryParams           string
+	HasNextPage           bool
 }
 
 templ Home(props HomeProps) {
 	@layouts.Main() {
-		<ul id="expenses">
-			for i, expense := range props.Expenses {
+		<h1>
+			{ strconv.Itoa(props.TransactionsWithCount.CountTotal) }
+			(Income: { strconv.Itoa(props.TransactionsWithCount.CountIncome) })
+			(Expenses: { strconv.Itoa(props.TransactionsWithCount.CountExpense) })
+		</h1>
+		<ul id="transactions">
+			for i, transaction := range props.TransactionsWithCount.Transactions {
 				<li
-					if i == len(props.Expenses)-1 {
+					if props.HasNextPage && i == len(props.TransactionsWithCount.Transactions)-1 {
 						hx-get={ string(templ.URL("/?" + props.QueryParams)) }
 						hx-trigger="revealed"
 						hx-swap="afterend"
-						hx-select="#expenses>li"
+						hx-select="#transactions>li"
 						hx-push-url="true"
 					}
 				>
-					{ expense.Name } - { expense.Date.Time.Format(constants.DateFormat) }
+					{ transaction.Name }
+					&nbsp;
+					@transactionType(transaction.TransactionType)
+					&nbsp;
+					- { transaction.Date.Time.Format(constants.DateFormat) }
 				</li>
 			}
+			if !props.HasNextPage {
+				<li>no more items</li>
+			}
 		</ul>
+	}
+}
+
+templ transactionType(t int16) {
+	switch t {
+		case constants.TransactionTypeExpense:
+			<span>(Expense)</span>
+		case constants.TransactionTypeIncome:
+			<span>(Income)</span>
+		default:
+			<span>invalid type ({ strconv.Itoa(int(t)) })</span>
 	}
 }

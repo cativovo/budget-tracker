@@ -24,7 +24,7 @@ func main() {
 	queries := store.New(dbpool)
 
 	server := server.NewServer(server.Resource{
-		ExpenseStore: queries,
+		TransactionStore: queries,
 	})
 
 	log.Fatal(server.Start(":" + cfg.Port))

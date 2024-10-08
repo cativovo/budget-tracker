@@ -11,7 +11,7 @@ import (
 )
 
 type Resource struct {
-	ExpenseStore ExpenseStore
+	TransactionStore TransactionStore
 }
 
 func NewServer(r Resource) *echo.Echo {
@@ -20,7 +20,7 @@ func NewServer(r Resource) *echo.Echo {
 	e.Use(middleware.Gzip())
 
 	homeResource{
-		expenseStore: r.ExpenseStore,
+		transactionStore: r.TransactionStore,
 	}.mountRoutes(e)
 
 	assetHandler := http.FileServer(http.FS(assets.Assets))
