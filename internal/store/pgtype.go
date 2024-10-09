@@ -16,12 +16,6 @@ func NewDate(date any) (pgtype.Date, error) {
 	return result, err
 }
 
-func NewNumeric(num any) (pgtype.Numeric, error) {
-	var result pgtype.Numeric
-	err := result.Scan(num)
-	return result, err
-}
-
 func NewText(text any) (pgtype.Text, error) {
 	var result pgtype.Text
 	err := result.Scan(text)

@@ -11,10 +11,42 @@ SELECT
 	category.icon as icon
 FROM transaction 
 LEFT JOIN category ON category.id = transaction.category_id
-WHERE transaction.account_id=$1 AND transaction.transaction_type=ANY(@transaction_types::SMALLINT[]) AND transaction.date BETWEEN @start_date AND @end_date
+WHERE transaction.account_id = $1 AND transaction.transaction_type = ANY(@transaction_types::SMALLINT[]) AND transaction.date BETWEEN @start_date AND @end_date
 ORDER BY transaction.date
 LIMIT $2
 OFFSET $3;
+
+-- name: ListTransactionsByDate :many
+WITH daily_totals AS (
+    SELECT 
+        DISTINCT date
+    FROM transaction
+		WHERE transaction.account_id = $1 AND transaction.date BETWEEN @start_date AND @end_date
+		ORDER BY transaction.date
+		LIMIT $2
+		OFFSET $3
+)
+SELECT 
+    daily_totals.date,
+    (
+        SELECT 
+					COALESCE(
+						JSON_AGG(
+							JSON_BUILD_OBJECT(
+									'id', transaction.id,
+									'name', transaction.name,
+									'amount', transaction.amount,
+									'description', transaction.description,
+									'date', transaction.date,
+									'transaction_type', transaction.transaction_type
+							)
+						),
+						'[]'
+					)::JSON
+        FROM transaction
+        WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY(@transaction_types::SMALLINT[]) 
+    ) AS transactions
+FROM daily_totals;
 
 -- name: CountTransactions :one
 SELECT 
@@ -22,13 +54,13 @@ SELECT
 	SELECT
 		COUNT(id)
 	FROM transaction
-	WHERE transaction.account_id=$1 AND transaction.transaction_type=0 AND transaction.date BETWEEN @start_date AND @end_date
+	WHERE transaction.account_id = $1 AND transaction.transaction_type = 0 AND transaction.date BETWEEN @start_date AND @end_date
 ) as expense_count,
 (
 	SELECT
 		COUNT(id)
 	FROM transaction
-	WHERE transaction.account_id=$1 AND transaction.transaction_type=1 AND transaction.date BETWEEN @start_date AND @end_date
+	WHERE transaction.account_id = $1 AND transaction.transaction_type = 1 AND transaction.date BETWEEN @start_date AND @end_date
 ) as income_count;
 
 -- name: GetTransaction :one
@@ -45,7 +77,7 @@ SELECT
 	category.icon as icon
 FROM transaction 
 LEFT JOIN category ON category.id = transaction.category_id
-WHERE category.account_id=$1 AND transaction.id=$2;
+WHERE category.account_id = $1 AND transaction.id = $2;
 
 -- name: CreateTransaction :one
 WITH inserted_transaction as (
@@ -69,8 +101,8 @@ LEFT JOIN category ON category.id = inserted_transaction.category_id;
 -- name: UpdateTransaction :one
 WITH updated_transaction as (
 	UPDATE transaction
-	SET name=$1, description=$2, date=$3, category_id=$4
-	WHERE transaction.account_id=$5 AND transaction.id=$6
+	SET name = $1, description = $2, date = $3, category_id = $4
+	WHERE transaction.account_id = $5 AND transaction.id=$6
 	RETURNING *
 ) 
 SELECT 
@@ -88,4 +120,4 @@ FROM updated_transaction
 LEFT JOIN category ON category.id = updated_transaction.category_id;
 
 -- name: DeleteTransaction :exec
-DELETE FROM transaction WHERE account_id=$1 AND id=$2;
+DELETE FROM transaction WHERE account_id = $1 AND id = $2;

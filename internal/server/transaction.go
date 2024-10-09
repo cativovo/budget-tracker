@@ -7,6 +7,6 @@ import (
 )
 
 type TransactionStore interface {
-	ListTransactionsWithCount(ctx context.Context, arg store.ListTransactionsParams) (store.ListTransactionsWithCountRow, error)
 	CreateTransaction(ctx context.Context, arg store.CreateTransactionParams) (store.CreateTransactionRow, error)
+	ListTransactionsByDate(ctx context.Context, arg store.ListTransactionsByDateParams) ([]store.ListTransactionsByDateRow, error)
 }

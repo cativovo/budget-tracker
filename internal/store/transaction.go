@@ -1,71 +1,58 @@
 package store
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
+
+	"github.com/cativovo/budget-tracker/internal/constants"
+	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
 
-type ListTransactionsWithCountRow struct {
-	Transactions []ListTransactionsRow
-	CountIncome  int
-	CountExpense int
-	CountTotal   int // total count before limit/offset
+type TransactionRow struct {
+	Date            pgtype.Date `json:"date"`
+	Name            string      `json:"name"`
+	Description     string      `json:"description"`
+	Amount          float64     `json:"amount"`
+	TransactionType int16       `json:"transaction_type"`
+	ID              pgtype.UUID `json:"id"`
 }
 
-// workaround for https://github.com/sqlc-dev/sqlc/issues/2761
-func (q *Queries) ListTransactionsWithCount(ctx context.Context, params ListTransactionsParams) (ListTransactionsWithCountRow, error) {
-	type count struct {
-		income  int
-		expense int
-	}
+type TransactionByDateRow struct {
+	Date          pgtype.Date
+	TotalExpenses decimal.Decimal
+	TotalIncome   decimal.Decimal
+	Transactions  []TransactionRow
+}
 
-	transactionsChan := make(chan try[[]ListTransactionsRow])
-	transactionsCountChan := make(chan try[count])
+func ParseListTransactionsByDateRows(rows []ListTransactionsByDateRow) ([]TransactionByDateRow, error) {
+	var result []TransactionByDateRow
 
-	go func() {
-		transactions, err := q.ListTransactions(ctx, ListTransactionsParams{
-			TransactionTypes: params.TransactionTypes,
-			AccountID:        params.AccountID,
-			StartDate:        params.StartDate,
-			EndDate:          params.EndDate,
-			Limit:            params.Limit,
-			Offset:           params.Offset,
-		})
-		transactionsChan <- try[[]ListTransactionsRow]{
-			value: transactions,
-			err:   err,
+	for _, row := range rows {
+		var transactions []TransactionRow
+		if err := json.Unmarshal(row.Transactions, &transactions); err != nil {
+			return nil, fmt.Errorf("listTransactions: unmarshal: %w - %s", err, string(row.Transactions))
 		}
-	}()
 
-	go func() {
-		transactionsCount, err := q.CountTransactions(ctx, CountTransactionsParams{
-			AccountID: params.AccountID,
-			StartDate: params.StartDate,
-			EndDate:   params.EndDate,
-		})
-		transactionsCountChan <- try[count]{
-			value: count{
-				income:  int(transactionsCount.IncomeCount),
-				expense: int(transactionsCount.ExpenseCount),
-			},
-			err: err,
+		var totalIncome decimal.Decimal
+		var totalExpenses decimal.Decimal
+		for _, t := range transactions {
+			if t.TransactionType == constants.TransactionTypeIncome {
+				totalIncome = totalIncome.Add(decimal.NewFromFloat(t.Amount))
+			} else {
+				totalExpenses = totalExpenses.Add(decimal.NewFromFloat(t.Amount))
+			}
 		}
-	}()
 
-	tryTransactions := <-transactionsChan
-	if err := tryTransactions.err; err != nil {
-		return ListTransactionsWithCountRow{}, fmt.Errorf("tryTransactions: %w", err)
+		record := TransactionByDateRow{
+			Date:          row.Date,
+			TotalIncome:   totalIncome,
+			TotalExpenses: totalExpenses,
+			Transactions:  transactions,
+		}
+
+		result = append(result, record)
 	}
 
-	tryTransactionsCount := <-transactionsCountChan
-	if err := tryTransactionsCount.err; err != nil {
-		return ListTransactionsWithCountRow{}, fmt.Errorf("tryTransactionsCount: %w", err)
-	}
-
-	return ListTransactionsWithCountRow{
-		Transactions: tryTransactions.value,
-		CountIncome:  tryTransactionsCount.value.income,
-		CountExpense: tryTransactionsCount.value.expense,
-		CountTotal:   tryTransactionsCount.value.income + tryTransactionsCount.value.expense,
-	}, nil
+	return result, nil
 }

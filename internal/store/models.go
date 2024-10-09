@@ -6,6 +6,7 @@ package store
 
 import (
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
 
 type Account struct {
@@ -27,7 +28,7 @@ type Transaction struct {
 	ID              pgtype.UUID
 	TransactionType int16
 	Name            string
-	Amount          pgtype.Numeric
+	Amount          decimal.Decimal
 	Description     pgtype.Text
 	Date            pgtype.Date
 	CreatedAt       pgtype.Timestamp

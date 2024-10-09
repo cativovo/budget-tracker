@@ -14,6 +14,7 @@ import (
 	"github.com/cativovo/budget-tracker/internal/config"
 	"github.com/cativovo/budget-tracker/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/shopspring/decimal"
 )
 
 type flags struct {
@@ -59,8 +60,8 @@ func main() {
 	var wg sync.WaitGroup
 	categoryChan := make(chan store.CreateCategoryRow)
 
-	minCategory := 5
-	maxCategory := 15
+	minCategory := 2
+	maxCategory := 10
 	categoryCount := rand.IntN(maxCategory) + minCategory + 1
 	for i := 0; i < categoryCount; i++ {
 		wg.Add(1)
@@ -88,16 +89,11 @@ func main() {
 		go func() {
 			for category := range categoryChan {
 				createExpenses := func() {
-					minTransaction := 10
-					maxTransaction := 300
+					minTransaction := 0
+					maxTransaction := 50
 					transactionCount := rand.IntN(maxTransaction) + minTransaction + 1
 
 					for i := 0; i < transactionCount; i++ {
-						amount, err := store.NewNumeric(fmt.Sprintf("%.2f", gofakeit.Price(10.0, 10000.0)))
-						if err != nil {
-							log.Fatal("encountered an error in expense seed:", err)
-						}
-
 						description, err := store.NewText(gofakeit.SentenceSimple())
 						if err != nil {
 							log.Fatal("encountered an error in expense seed:", err)
@@ -123,7 +119,7 @@ func main() {
 						result, err := queries.CreateTransaction(context.Background(), store.CreateTransactionParams{
 							TransactionType: transactionType,
 							Name:            gofakeit.Noun(),
-							Amount:          amount,
+							Amount:          decimal.NewFromFloat(gofakeit.Price(10.0, 1000.0)),
 							Description:     description,
 							Date:            date,
 							CategoryID:      category.ID,

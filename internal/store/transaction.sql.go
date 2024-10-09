@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/shopspring/decimal"
 )
 
 const countTransactions = `-- name: CountTransactions :one
@@ -17,13 +18,13 @@ SELECT
 	SELECT
 		COUNT(id)
 	FROM transaction
-	WHERE transaction.account_id=$1 AND transaction.transaction_type=0 AND transaction.date BETWEEN $2 AND $3
+	WHERE transaction.account_id = $1 AND transaction.transaction_type = 0 AND transaction.date BETWEEN $2 AND $3
 ) as expense_count,
 (
 	SELECT
 		COUNT(id)
 	FROM transaction
-	WHERE transaction.account_id=$1 AND transaction.transaction_type=1 AND transaction.date BETWEEN $2 AND $3
+	WHERE transaction.account_id = $1 AND transaction.transaction_type = 1 AND transaction.date BETWEEN $2 AND $3
 ) as income_count
 `
 
@@ -67,7 +68,7 @@ LEFT JOIN category ON category.id = inserted_transaction.category_id
 
 type CreateTransactionParams struct {
 	Name            string
-	Amount          pgtype.Numeric
+	Amount          decimal.Decimal
 	TransactionType int16
 	Description     pgtype.Text
 	Date            pgtype.Date
@@ -115,7 +116,7 @@ func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionPa
 }
 
 const deleteTransaction = `-- name: DeleteTransaction :exec
-DELETE FROM transaction WHERE account_id=$1 AND id=$2
+DELETE FROM transaction WHERE account_id = $1 AND id = $2
 `
 
 type DeleteTransactionParams struct {
@@ -142,7 +143,7 @@ SELECT
 	category.icon as icon
 FROM transaction 
 LEFT JOIN category ON category.id = transaction.category_id
-WHERE category.account_id=$1 AND transaction.id=$2
+WHERE category.account_id = $1 AND transaction.id = $2
 `
 
 type GetTransactionParams struct {
@@ -194,7 +195,7 @@ SELECT
 	category.icon as icon
 FROM transaction 
 LEFT JOIN category ON category.id = transaction.category_id
-WHERE transaction.account_id=$1 AND transaction.transaction_type=ANY($4::SMALLINT[]) AND transaction.date BETWEEN $5 AND $6
+WHERE transaction.account_id = $1 AND transaction.transaction_type = ANY($4::SMALLINT[]) AND transaction.date BETWEEN $5 AND $6
 ORDER BY transaction.date
 LIMIT $2
 OFFSET $3
@@ -258,11 +259,85 @@ func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsPara
 	return items, nil
 }
 
+const listTransactionsByDate = `-- name: ListTransactionsByDate :many
+WITH daily_totals AS (
+    SELECT 
+        DISTINCT date
+    FROM transaction
+		WHERE transaction.account_id = $1 AND transaction.date BETWEEN $5 AND $6
+		ORDER BY transaction.date
+		LIMIT $2
+		OFFSET $3
+)
+SELECT 
+    daily_totals.date,
+    (
+        SELECT 
+					COALESCE(
+						JSON_AGG(
+							JSON_BUILD_OBJECT(
+									'id', transaction.id,
+									'name', transaction.name,
+									'amount', transaction.amount,
+									'description', transaction.description,
+									'date', transaction.date,
+									'transaction_type', transaction.transaction_type
+							)
+						),
+						'[]'
+					)::JSON
+        FROM transaction
+        WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY($4::SMALLINT[]) 
+    ) AS transactions
+FROM daily_totals
+`
+
+type ListTransactionsByDateParams struct {
+	AccountID        pgtype.UUID
+	Limit            int32
+	Offset           int32
+	TransactionTypes []int16
+	StartDate        pgtype.Date
+	EndDate          pgtype.Date
+}
+
+type ListTransactionsByDateRow struct {
+	Date         pgtype.Date
+	Transactions []byte
+}
+
+func (q *Queries) ListTransactionsByDate(ctx context.Context, arg ListTransactionsByDateParams) ([]ListTransactionsByDateRow, error) {
+	rows, err := q.db.Query(ctx, listTransactionsByDate,
+		arg.AccountID,
+		arg.Limit,
+		arg.Offset,
+		arg.TransactionTypes,
+		arg.StartDate,
+		arg.EndDate,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListTransactionsByDateRow
+	for rows.Next() {
+		var i ListTransactionsByDateRow
+		if err := rows.Scan(&i.Date, &i.Transactions); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTransaction = `-- name: UpdateTransaction :one
 WITH updated_transaction as (
 	UPDATE transaction
-	SET name=$1, description=$2, date=$3, category_id=$4
-	WHERE transaction.account_id=$5 AND transaction.id=$6
+	SET name = $1, description = $2, date = $3, category_id = $4
+	WHERE transaction.account_id = $5 AND transaction.id=$6
 	RETURNING id, transaction_type, name, amount, description, date, created_at, updated_at, category_id, account_id
 ) 
 SELECT 

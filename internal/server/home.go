@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 	"time"
 
@@ -35,7 +34,7 @@ func (hr homeResource) homePage(c echo.Context) error {
 	}
 
 	// TODO: get from cookie
-	accountID, err := store.NewUUID("c6d64bb9-2d0e-43c1-aa03-912912351f42")
+	accountID, err := store.NewUUID("37bafcd9-8578-4d06-aaef-0bc3bd922d20")
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -74,7 +73,7 @@ func (hr homeResource) homePage(c echo.Context) error {
 		page = 1
 	}
 
-	const itemsPerPage = 10
+	const itemsPerPage = 5
 	offset := 0
 	limit := page * itemsPerPage
 	if isHxRequest(c) {
@@ -87,7 +86,17 @@ func (hr homeResource) homePage(c echo.Context) error {
 		transactionTypes = []int16{constants.TransactionTypeExpense, constants.TransactionTypeIncome}
 	}
 
-	transactionsWithCount, err := hr.transactionStore.ListTransactionsWithCount(c.Request().Context(), store.ListTransactionsParams{
+	queryParams := fmt.Sprintf(
+		"page=%d&start_date=%s&end_date=%s",
+		page+1,
+		start.Format(constants.DateFormat),
+		end.Format(constants.DateFormat),
+	)
+	for _, v := range transactionTypes {
+		queryParams += fmt.Sprintf("&transaction_type=%d", v)
+	}
+
+	r, err := hr.transactionStore.ListTransactionsByDate(c.Request().Context(), store.ListTransactionsByDateParams{
 		TransactionTypes: transactionTypes,
 		AccountID:        accountID,
 		Limit:            int32(limit),
@@ -100,22 +109,15 @@ func (hr homeResource) homePage(c echo.Context) error {
 		return err
 	}
 
-	totalPages := int(math.Ceil(float64(transactionsWithCount.CountTotal) / float64(itemsPerPage)))
-	hasNextPage := page < totalPages
-
-	queryParams := fmt.Sprintf(
-		"page=%d&start_date=%s&end_date=%s",
-		page+1,
-		start.Format(constants.DateFormat),
-		end.Format(constants.DateFormat),
-	)
-	for _, v := range transactionTypes {
-		queryParams += fmt.Sprintf("&transaction_type=%d", v)
+	t, err := store.ParseListTransactionsByDateRows(r)
+	if err != nil {
+		c.Logger().Error(err)
+		return err
 	}
 
 	return render(c, http.StatusOK, pages.Home(pages.HomeProps{
-		TransactionsWithCount: transactionsWithCount,
-		QueryParams:           queryParams,
-		HasNextPage:           hasNextPage,
+		Transactions: t,
+		QueryParams:  queryParams,
+		HasNextPage:  false,
 	}))
 }
