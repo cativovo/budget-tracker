@@ -18,15 +18,19 @@ type DBConfig struct {
 }
 
 type Config struct {
+	Env  string
 	Port string
 	DB   DBConfig
 }
 
+const envKey = "BUDGET_TRACKER_ENV"
+
 // https://github.com/joho/godotenv?tab=readme-ov-file#precedence--conventions
 func loadEnv() []string {
-	env := os.Getenv("BUDGET_TRACKER_ENV")
+	env := os.Getenv(envKey)
 	if env == "" {
 		env = "development"
+		os.Setenv(envKey, env)
 	}
 
 	var loadedFiles []string
@@ -91,5 +95,6 @@ func LoadConfig() (Config, error) {
 	return Config{
 		Port: os.Getenv("PORT"),
 		DB:   dbCfg,
+		Env:  os.Getenv(envKey),
 	}, nil
 }
