@@ -31,7 +31,7 @@ func ParseListTransactionsByDateRows(rows []ListTransactionsByDateRow) ([]Transa
 	for _, row := range rows {
 		var transactions []TransactionRow
 		if err := json.Unmarshal(row.Transactions, &transactions); err != nil {
-			return nil, fmt.Errorf("listTransactions: unmarshal: %w - %s", err, string(row.Transactions))
+			return nil, fmt.Errorf("ParseListTransactionsByDateRows: unmarshal: %w - %s", err, string(row.Transactions))
 		}
 
 		var totalIncome decimal.Decimal
