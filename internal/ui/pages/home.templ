@@ -27,7 +27,7 @@ templ Home(props HomeProps) {
 						}
 						<ul>
 							for _, t := range v.Transactions {
-								<li>
+								<li class="text-red-600">
 									<span>{ t.Name } ({ fmt.Sprintf("%.2f", t.Amount) })</span>
 									@transactionType(int16(t.TransactionType))
 								</li>
