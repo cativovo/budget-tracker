@@ -26,7 +26,7 @@ type TransactionByDateRow struct {
 }
 
 func ParseListTransactionsByDateRows(rows []ListTransactionsByDateRow) ([]TransactionByDateRow, error) {
-	var result []TransactionByDateRow
+	result := make([]TransactionByDateRow, 0, len(rows))
 
 	for _, row := range rows {
 		var transactions []TransactionRow
