@@ -5,15 +5,19 @@ import "github.com/cativovo/budget-tracker/internal/store"
 import "github.com/cativovo/budget-tracker/internal/constants"
 import "strconv"
 import "fmt"
+import "github.com/cativovo/budget-tracker/internal/ui"
 
 type HomeProps struct {
 	Transactions []store.TransactionByDateRow
 	QueryParams  string
 	HasNextPage  bool
+	AssetsStore  ui.AssetsStore
 }
 
 templ Home(props HomeProps) {
-	@layouts.Main() {
+	@layouts.Main(layouts.MainProps{
+		AssetsStore: props.AssetsStore,
+	}) {
 		<ul id="transactions">
 			for _, v := range props.Transactions {
 				if len(v.Transactions) > 0 {
@@ -27,7 +31,7 @@ templ Home(props HomeProps) {
 						}
 						<ul>
 							for _, t := range v.Transactions {
-								<li class="text-red-600">
+								<li class="text-blue-600">
 									<span>{ t.Name } ({ fmt.Sprintf("%.2f", t.Amount) })</span>
 									@transactionType(int16(t.TransactionType))
 								</li>

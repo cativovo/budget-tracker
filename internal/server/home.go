@@ -13,10 +13,12 @@ import (
 
 type homeResource struct {
 	transactionStore TransactionStore
+	assetsStore      AssetsStore
 }
 
 func (hr homeResource) mountRoutes(e *echo.Echo) {
 	e.GET("/", hr.homePage)
+	e.GET("/test", hr.homePage)
 }
 
 func (hr homeResource) homePage(c echo.Context) error {
@@ -119,5 +121,6 @@ func (hr homeResource) homePage(c echo.Context) error {
 		Transactions: t,
 		QueryParams:  queryParams,
 		HasNextPage:  false,
+		AssetsStore:  hr.assetsStore,
 	}))
 }

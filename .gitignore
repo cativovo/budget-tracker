@@ -4,3 +4,5 @@
 tmp
 *_templ.*
 node_modules
+dist/*
+!dist/README.md

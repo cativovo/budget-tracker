@@ -4,14 +4,20 @@ import (
 	"net/http"
 
 	"github.com/a-h/templ"
+	"github.com/cativovo/budget-tracker/internal/ui"
 	"github.com/cativovo/budget-tracker/internal/ui/pages"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
+type AssetsStore interface {
+	ui.AssetsStore
+	AssetsFs() http.FileSystem
+}
+
 type Resource struct {
 	TransactionStore TransactionStore
-	AssetsFS         http.FileSystem
+	AssetsStore      AssetsStore
 }
 
 func NewServer(r Resource) *echo.Echo {
@@ -21,10 +27,10 @@ func NewServer(r Resource) *echo.Echo {
 
 	homeResource{
 		transactionStore: r.TransactionStore,
+		assetsStore:      r.AssetsStore,
 	}.mountRoutes(e)
 
-	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(r.AssetsFS))))
-
+	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(r.AssetsStore.AssetsFs()))))
 	e.HTTPErrorHandler = httpErrorHandler
 
 	return e

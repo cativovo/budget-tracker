@@ -3,13 +3,11 @@ package main
 import (
 	"context"
 	"log"
-	"net/http"
-	"os"
 
-	"github.com/cativovo/budget-tracker/assets"
 	"github.com/cativovo/budget-tracker/internal/config"
 	"github.com/cativovo/budget-tracker/internal/server"
 	"github.com/cativovo/budget-tracker/internal/store"
+	"github.com/cativovo/budget-tracker/internal/vite"
 )
 
 func main() {
@@ -25,22 +23,12 @@ func main() {
 	defer dbpool.Close()
 
 	queries := store.New(dbpool)
-	assetsFs := getAssetFS(cfg.Env == "development")
+	v := vite.NewVite(cfg.Env == "development")
 
 	server := server.NewServer(server.Resource{
 		TransactionStore: queries,
-		AssetsFS:         assetsFs,
+		AssetsStore:      v,
 	})
 
 	log.Fatal(server.Start(":" + cfg.Port))
-}
-
-func getAssetFS(useOS bool) http.FileSystem {
-	if useOS {
-		log.Println("using live mode")
-		return http.FS(os.DirFS("assets"))
-	}
-
-	log.Println("using embed mode")
-	return http.FS(assets.Assets)
 }
