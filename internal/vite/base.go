@@ -4,8 +4,7 @@ import (
 	"io/fs"
 	"net/http"
 	"os"
-
-	budgettracker "github.com/cativovo/budget-tracker"
+	"strings"
 )
 
 // https://github.com/olivere/vite
@@ -15,27 +14,17 @@ type Vite struct {
 	IsDev    bool
 }
 
-func NewVite(isDev bool) Vite {
+func NewVite(isDev bool, mf fs.File, assetsFS fs.FS) Vite {
 	var v Vite
 	v.IsDev = isDev
 
 	if !isDev {
-		mf, err := budgettracker.Dist.Open("dist/.vite/manifest.json")
-		if err != nil {
-			panic(".vite/manifest.json not found: " + err.Error())
-		}
-
-		assets, err := fs.Sub(budgettracker.Dist, "dist/assets")
-		if err != nil {
-			panic(err)
-		}
-
 		manifest, err := ParseManifest(mf)
 		if err != nil {
 			panic("error ParseManifest: " + err.Error())
 		}
 		v.manifest = manifest
-		v.assets = assets
+		v.assets = assetsFS
 	}
 
 	return v
@@ -56,9 +45,13 @@ func (v Vite) Assets() string {
 
 	css := v.manifest.GenerateCSS(chunk.Src)
 	modules := v.manifest.GenerateModules(chunk.Src)
-	preloadModules := v.manifest.GenerateCSS(chunk.Src)
 
-	return css + modules + preloadModules
+	var preloadModules strings.Builder
+	for _, name := range chunk.Imports {
+		preloadModules.WriteString(v.manifest.GeneratePreloadModules(name))
+	}
+
+	return css + modules + preloadModules.String()
 }
 
 func (v Vite) AssetsFs() http.FileSystem {
