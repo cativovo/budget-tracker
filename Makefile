@@ -25,6 +25,6 @@ live:
 generate:
 	go generate ./...
 
-build:
+build: generate
 	pnpm run build
 	go build -o app ./cmd/app
