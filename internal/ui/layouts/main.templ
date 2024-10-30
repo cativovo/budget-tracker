@@ -15,9 +15,59 @@ templ Main(props MainProps) {
 			@templ.Raw(props.AssetsStore.Assets())
 		</head>
 		<body>
-			<main>
+			<main class="h-[calc(100vh-theme(space.16))] overflow-y-scroll p-4">
 				{ children... }
 			</main>
+			<nav class="pt-3 shadow-inner">
+				<ul class="flex justify-around">
+					<li>
+						@link(linkProps{
+							label: "Records",
+							icon:  "notebook-text",
+							href:  "/",
+						})
+					</li>
+					<li>
+						@link(linkProps{
+							label: "Charts",
+							icon:  "chart-pie",
+							href:  "/",
+						})
+					</li>
+					<li>
+						<a href="/" class="inline-flex justify-center items-center bg-green-300 rounded-full -translate-y-1 size-12">
+							<i data-lucide="plus" class="size-7"></i>
+						</a>
+					</li>
+					<li>
+						@link(linkProps{
+							label: "Reports",
+							icon:  "scroll-text",
+							href:  "/",
+						})
+					</li>
+					<li>
+						@link(linkProps{
+							label: "User",
+							icon:  "user-round",
+							href:  "/",
+						})
+					</li>
+				</ul>
+			</nav>
 		</body>
 	</html>
+}
+
+type linkProps struct {
+	label string
+	icon  string
+	href  string
+}
+
+templ link(props linkProps) {
+	<a href={ templ.SafeURL(props.href) } class="flex flex-col items-center">
+		<i data-lucide={ props.icon }></i>
+		<span>{ props.label }</span>
+	</a>
 }
