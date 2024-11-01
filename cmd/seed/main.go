@@ -90,7 +90,7 @@ func main() {
 			for category := range categoryChan {
 				createExpenses := func() {
 					minTransaction := 0
-					maxTransaction := 50
+					maxTransaction := 100
 					transactionCount := rand.IntN(maxTransaction) + minTransaction + 1
 
 					for i := 0; i < transactionCount; i++ {
@@ -100,7 +100,7 @@ func main() {
 						}
 
 						startDate := time.Date(2024, time.September, 1, 0, 0, 0, 0, time.UTC)
-						endDate := time.Date(2024, time.October, 31, 0, 0, 0, 0, time.UTC)
+						endDate := time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)
 						fakeDate := gofakeit.DateRange(startDate, endDate).Format("2006-01-02")
 						date, err := store.NewDate(fakeDate)
 						if err != nil {
