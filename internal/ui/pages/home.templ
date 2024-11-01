@@ -3,7 +3,6 @@ package pages
 import "github.com/cativovo/budget-tracker/internal/ui/layouts"
 import "github.com/cativovo/budget-tracker/internal/store"
 import "github.com/cativovo/budget-tracker/internal/constants"
-import "strconv"
 import "fmt"
 import "github.com/cativovo/budget-tracker/internal/ui"
 
@@ -18,22 +17,28 @@ templ Home(props HomeProps) {
 	@layouts.Main(layouts.MainProps{
 		AssetsStore: props.AssetsStore,
 	}) {
-		<ul id="transactions">
+		<ul id="transactions" class="space-y-1">
 			for _, v := range props.Transactions {
 				if len(v.Transactions) > 0 {
 					<li>
-						<strong>{ v.Date.Time.Format(constants.DateFormat) } </strong>
-						if !v.TotalExpenses.IsZero() {
-							<span>(Expenses: { v.TotalExpenses.String() })</span>
-						}
-						if !v.TotalIncome.IsZero() {
-							<span>(Income: { v.TotalIncome.String() })</span>
-						}
-						<ul>
+						<div class="flex py-1 text-xs">
+							<span>{ v.Date.Time.Format("January 02, Monday") } </span>
+							<div class="inline-block ml-auto space-x-2">
+								if !v.TotalExpenses.IsZero() {
+									<span>Expenses: { v.TotalExpenses.String() }</span>
+								}
+								if !v.TotalIncome.IsZero() {
+									<span>Income: { v.TotalIncome.String() }</span>
+								}
+							</div>
+						</div>
+						<ul class="pl-4 space-y-1 list-disc border-t divide-y">
 							for _, t := range v.Transactions {
-								<li class="text-blue-600">
-									<span>{ t.Name } ({ fmt.Sprintf("%.2f", t.Amount) })</span>
-									@transactionType(int16(t.TransactionType))
+								<li class="flex gap-1 items-center py-2">
+									// TODO: get the value of icon from db
+									<i data-lucide="chart-pie"></i>
+									<span>{ t.Name }</span>
+									<span class="ml-auto">{ formatAmount(t.Amount, t.TransactionType) }</span>
 								</li>
 							}
 						</ul>
@@ -55,13 +60,13 @@ templ Home(props HomeProps) {
 	}
 }
 
-templ transactionType(t int16) {
-	switch t {
-		case constants.TransactionTypeExpense:
-			<span>(Expense)</span>
-		case constants.TransactionTypeIncome:
-			<span>(Income)</span>
-		default:
-			<span>invalid type ({ strconv.Itoa(int(t)) })</span>
+func formatAmount(amount float64, transactionType int16) string {
+	var symbol string
+	switch transactionType {
+	case constants.TransactionTypeExpense:
+		symbol = "-"
+	case constants.TransactionTypeIncome:
+		symbol = "+"
 	}
+	return fmt.Sprintf("%s%.2f", symbol, amount)
 }
