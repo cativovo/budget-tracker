@@ -36,7 +36,7 @@ func (hr homeResource) homePage(c echo.Context) error {
 	}
 
 	// TODO: get from cookie
-	accountID, err := store.NewUUID("37bafcd9-8578-4d06-aaef-0bc3bd922d20")
+	accountID, err := store.NewUUID("5b064dea-14d9-4696-9dba-d55f013f35b1")
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -75,7 +75,7 @@ func (hr homeResource) homePage(c echo.Context) error {
 		page = 1
 	}
 
-	const itemsPerPage = 5
+	const itemsPerPage = 10
 	offset := 0
 	limit := page * itemsPerPage
 	if isHxRequest(c) {

@@ -1,21 +1,3 @@
--- name: ListTransactions :many
-SELECT 
-	transaction.id as id,
-	transaction.transaction_type as transaction_type,
-	transaction.name as name,
-	transaction.date as date,
-	transaction.created_at as created_at,
-	transaction.updated_at as updated_at,
-	category.name as category,
-	category.color_hex as color,
-	category.icon as icon
-FROM transaction 
-LEFT JOIN category ON category.id = transaction.category_id
-WHERE transaction.account_id = $1 AND transaction.transaction_type = ANY(@transaction_types::SMALLINT[]) AND transaction.date BETWEEN @start_date AND @end_date
-ORDER BY transaction.date
-LIMIT $2
-OFFSET $3;
-
 -- name: ListTransactionsByDate :many
 WITH daily_totals AS (
     SELECT 
