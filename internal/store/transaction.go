@@ -2,7 +2,6 @@ package store
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/cativovo/budget-tracker/internal/constants"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -13,9 +12,9 @@ type TransactionRow struct {
 	Date            pgtype.Date `json:"date"`
 	Name            string      `json:"name"`
 	Description     string      `json:"description"`
+	ID              string      `json:"id"`
 	Amount          float64     `json:"amount"`
 	TransactionType int16       `json:"transaction_type"`
-	ID              pgtype.UUID `json:"id"`
 }
 
 type TransactionByDateRow struct {
@@ -25,18 +24,34 @@ type TransactionByDateRow struct {
 	Transactions  []TransactionRow
 }
 
-func ParseListTransactionsByDateRows(rows []ListTransactionsByDateRow) ([]TransactionByDateRow, error) {
-	result := make([]TransactionByDateRow, 0, len(rows))
+type Foo struct {
+	Date         pgtype.Date      `json:"date"`
+	Transactions []TransactionRow `json:"transactions"`
+}
 
-	for _, row := range rows {
-		var transactions []TransactionRow
-		if err := json.Unmarshal(row.Transactions, &transactions); err != nil {
-			return nil, fmt.Errorf("ParseListTransactionsByDateRows: unmarshal: %w - %s", err, string(row.Transactions))
-		}
+type Bar struct {
+	Result []Foo `json:"transactions"`
+	Count  int   `json:"count"`
+}
 
+type ParseListTransactionsByDateRowsResult struct {
+	Transactions []TransactionByDateRow
+	Count        int
+}
+
+func ParseListTransactionsByDateRows(data []byte) (ParseListTransactionsByDateRowsResult, error) {
+	var foo Bar
+
+	if err := json.Unmarshal(data, &foo); err != nil {
+		return ParseListTransactionsByDateRowsResult{}, err
+	}
+
+	transactions := make([]TransactionByDateRow, 0)
+
+	for _, row := range foo.Result {
 		var totalIncome decimal.Decimal
 		var totalExpenses decimal.Decimal
-		for _, t := range transactions {
+		for _, t := range row.Transactions {
 			if t.TransactionType == constants.TransactionTypeIncome {
 				totalIncome = totalIncome.Add(decimal.NewFromFloat(t.Amount))
 			} else {
@@ -48,10 +63,15 @@ func ParseListTransactionsByDateRows(rows []ListTransactionsByDateRow) ([]Transa
 			Date:          row.Date,
 			TotalIncome:   totalIncome,
 			TotalExpenses: totalExpenses,
-			Transactions:  transactions,
+			Transactions:  row.Transactions,
 		}
 
-		result = append(result, record)
+		transactions = append(transactions, record)
+	}
+
+	result := ParseListTransactionsByDateRowsResult{
+		Count:        foo.Count,
+		Transactions: transactions,
 	}
 
 	return result, nil

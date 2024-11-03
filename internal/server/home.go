@@ -117,10 +117,12 @@ func (hr homeResource) homePage(c echo.Context) error {
 		return err
 	}
 
+	fmt.Println(itemsPerPage*page, t.Count > itemsPerPage*page)
+
 	return render(c, http.StatusOK, pages.Home(pages.HomeProps{
-		Transactions: t,
+		Transactions: t.Transactions,
 		QueryParams:  queryParams,
-		HasNextPage:  false,
+		HasNextPage:  t.Count > itemsPerPage*page,
 		AssetsStore:  hr.assetsStore,
 	}))
 }

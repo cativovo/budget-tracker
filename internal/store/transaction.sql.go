@@ -182,113 +182,47 @@ func (q *Queries) GetTransaction(ctx context.Context, arg GetTransactionParams) 
 	return i, err
 }
 
-const listTransactions = `-- name: ListTransactions :many
-SELECT 
-	transaction.id as id,
-	transaction.transaction_type as transaction_type,
-	transaction.name as name,
-	transaction.date as date,
-	transaction.created_at as created_at,
-	transaction.updated_at as updated_at,
-	category.name as category,
-	category.color_hex as color,
-	category.icon as icon
-FROM transaction 
-LEFT JOIN category ON category.id = transaction.category_id
-WHERE transaction.account_id = $1 AND transaction.transaction_type = ANY($4::SMALLINT[]) AND transaction.date BETWEEN $5 AND $6
-ORDER BY transaction.date
-LIMIT $2
-OFFSET $3
-`
-
-type ListTransactionsParams struct {
-	AccountID        pgtype.UUID
-	Limit            int32
-	Offset           int32
-	TransactionTypes []int16
-	StartDate        pgtype.Date
-	EndDate          pgtype.Date
-}
-
-type ListTransactionsRow struct {
-	ID              pgtype.UUID
-	TransactionType int16
-	Name            string
-	Date            pgtype.Date
-	CreatedAt       pgtype.Timestamp
-	UpdatedAt       pgtype.Timestamp
-	Category        pgtype.Text
-	Color           pgtype.Text
-	Icon            pgtype.Text
-}
-
-func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
-	rows, err := q.db.Query(ctx, listTransactions,
-		arg.AccountID,
-		arg.Limit,
-		arg.Offset,
-		arg.TransactionTypes,
-		arg.StartDate,
-		arg.EndDate,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListTransactionsRow
-	for rows.Next() {
-		var i ListTransactionsRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.TransactionType,
-			&i.Name,
-			&i.Date,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.Category,
-			&i.Color,
-			&i.Icon,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listTransactionsByDate = `-- name: ListTransactionsByDate :many
+const listTransactionsByDate = `-- name: ListTransactionsByDate :one
 WITH daily_totals AS (
-    SELECT 
-        DISTINCT date
-    FROM transaction
-		WHERE transaction.account_id = $1 AND transaction.date BETWEEN $5 AND $6
+		SELECT DISTINCT transaction.date
+		FROM transaction
+		WHERE transaction.account_id = $1 AND transaction.date BETWEEN $4 AND $5
 		ORDER BY transaction.date
 		LIMIT $2
 		OFFSET $3
 )
-SELECT 
-    daily_totals.date,
-    (
-        SELECT 
-					COALESCE(
-						JSON_AGG(
-							JSON_BUILD_OBJECT(
-									'id', transaction.id,
-									'name', transaction.name,
-									'amount', transaction.amount,
-									'description', transaction.description,
-									'date', transaction.date,
-									'transaction_type', transaction.transaction_type
-							)
-						),
-						'[]'
-					)::JSON
+SELECT JSON_BUILD_OBJECT(
+    'count', (
+        SELECT COUNT(DISTINCT transaction.date)
         FROM transaction
-        WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY($4::SMALLINT[]) 
-    ) AS transactions
+				WHERE transaction.account_id = $1 AND transaction.date BETWEEN $4 AND $5
+    ),
+    'transactions', COALESCE(
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'date', daily_totals.date,
+                'transactions', (
+                    SELECT COALESCE(
+                        JSON_AGG(
+                            JSON_BUILD_OBJECT(
+                                'id', transaction.id,
+                                'name', transaction.name,
+                                'amount', transaction.amount,
+                                'description', transaction.description,
+                                'date', transaction.date,
+                                'transaction_type', transaction.transaction_type
+                            )
+                        ),
+                        '[]'::JSON
+                    )
+                    FROM transaction
+										WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY($6::SMALLINT[])
+                )
+            )
+        ),
+        '[]'::JSON
+    )
+) AS result
 FROM daily_totals
 `
 
@@ -296,41 +230,23 @@ type ListTransactionsByDateParams struct {
 	AccountID        pgtype.UUID
 	Limit            int32
 	Offset           int32
-	TransactionTypes []int16
 	StartDate        pgtype.Date
 	EndDate          pgtype.Date
+	TransactionTypes []int16
 }
 
-type ListTransactionsByDateRow struct {
-	Date         pgtype.Date
-	Transactions []byte
-}
-
-func (q *Queries) ListTransactionsByDate(ctx context.Context, arg ListTransactionsByDateParams) ([]ListTransactionsByDateRow, error) {
-	rows, err := q.db.Query(ctx, listTransactionsByDate,
+func (q *Queries) ListTransactionsByDate(ctx context.Context, arg ListTransactionsByDateParams) ([]byte, error) {
+	row := q.db.QueryRow(ctx, listTransactionsByDate,
 		arg.AccountID,
 		arg.Limit,
 		arg.Offset,
-		arg.TransactionTypes,
 		arg.StartDate,
 		arg.EndDate,
+		arg.TransactionTypes,
 	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []ListTransactionsByDateRow
-	for rows.Next() {
-		var i ListTransactionsByDateRow
-		if err := rows.Scan(&i.Date, &i.Transactions); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	var result []byte
+	err := row.Scan(&result)
+	return result, err
 }
 
 const updateTransaction = `-- name: UpdateTransaction :one

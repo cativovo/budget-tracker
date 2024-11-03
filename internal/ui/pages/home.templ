@@ -18,45 +18,45 @@ templ Home(props HomeProps) {
 		AssetsStore: props.AssetsStore,
 	}) {
 		<ul id="transactions" class="space-y-1">
-			for _, v := range props.Transactions {
-				if len(v.Transactions) > 0 {
-					<li>
-						<div class="flex py-1 text-xs">
-							<span>{ v.Date.Time.Format("January 02, Monday") } </span>
-							<div class="inline-block ml-auto space-x-2">
-								if !v.TotalExpenses.IsZero() {
-									<span>Expenses: { v.TotalExpenses.String() }</span>
-								}
-								if !v.TotalIncome.IsZero() {
-									<span>Income: { v.TotalIncome.String() }</span>
-								}
-							</div>
-						</div>
-						<ul class="pl-4 space-y-1 list-disc border-t divide-y">
-							for _, t := range v.Transactions {
-								<li class="flex gap-1 items-center py-2">
-									// TODO: get the value of icon from db
-									<i data-lucide="chart-pie"></i>
-									<span>{ t.Name }</span>
-									<span class="ml-auto">{ formatAmount(t.Amount, t.TransactionType) }</span>
-								</li>
+			for i, v := range props.Transactions {
+				<li>
+					<div class="flex py-1 text-xs">
+						<span>{ v.Date.Time.Format("January 02, Monday") } </span>
+						<div class="inline-block ml-auto space-x-2">
+							if !v.TotalExpenses.IsZero() {
+								<span>Expenses: { v.TotalExpenses.String() }</span>
 							}
-						</ul>
-					</li>
-				}
+							if !v.TotalIncome.IsZero() {
+								<span>Income: { v.TotalIncome.String() }</span>
+							}
+						</div>
+					</div>
+					<ul class="pl-4 space-y-1 list-disc border-t divide-y">
+						for j, t := range v.Transactions {
+							<li
+								class="flex gap-1 items-center py-2"
+								if props.HasNextPage && i == len(props.Transactions)-1 && j == len(v.Transactions)-1 {
+									hx-get={ string(templ.URL("/?" + props.QueryParams)) }
+									hx-select="#transactions>li"
+									hx-swap="afterend"
+									hx-target="#transactions>li:last-child"
+									hx-push-url="true"
+									hx-trigger="intersect once"
+								}
+							>
+								// TODO: get the value of icon from db
+								<i data-lucide="chart-pie"></i>
+								<span>{ t.Name }</span>
+								<span class="ml-auto">{ formatAmount(t.Amount, t.TransactionType) }</span>
+							</li>
+						}
+					</ul>
+				</li>
+			}
+			if !props.HasNextPage {
+				<li>no more</li>
 			}
 		</ul>
-		<button
-			id="load-more-btn"
-			hx-get={ string(templ.URL("/?" + props.QueryParams)) }
-			hx-select="#transactions>li"
-			hx-swap="afterend"
-			hx-target="#transactions>li:last-child"
-			hx-select-oob="load-more-btn"
-			hx-push-url="true"
-		>
-			load more
-		</button>
 	}
 }
 

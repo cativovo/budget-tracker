@@ -28,3 +28,6 @@ generate:
 build: generate
 	pnpm run build
 	go build -o app ./cmd/app
+
+serve:
+	BUDGET_TRACKER_ENV=production ./app

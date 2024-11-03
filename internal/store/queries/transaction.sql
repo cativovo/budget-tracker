@@ -1,34 +1,46 @@
--- name: ListTransactionsByDate :many
+-- name: ListTransactionsByDate :one
 WITH daily_totals AS (
-    SELECT 
-        DISTINCT date
-    FROM transaction
+		SELECT DISTINCT transaction.date
+		FROM transaction
 		WHERE transaction.account_id = $1 AND transaction.date BETWEEN @start_date AND @end_date
 		ORDER BY transaction.date
 		LIMIT $2
 		OFFSET $3
 )
-SELECT 
-    daily_totals.date,
-    (
-        SELECT 
-					COALESCE(
-						JSON_AGG(
-							JSON_BUILD_OBJECT(
-									'id', transaction.id,
-									'name', transaction.name,
-									'amount', transaction.amount,
-									'description', transaction.description,
-									'date', transaction.date,
-									'transaction_type', transaction.transaction_type
-							)
-						),
-						'[]'
-					)::JSON
+SELECT JSON_BUILD_OBJECT(
+    'count', (
+        SELECT COUNT(DISTINCT transaction.date)
         FROM transaction
-        WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY(@transaction_types::SMALLINT[]) 
-    ) AS transactions
+				WHERE transaction.account_id = $1 AND transaction.date BETWEEN @start_date AND @end_date
+    ),
+    'transactions', COALESCE(
+        JSON_AGG(
+            JSON_BUILD_OBJECT(
+                'date', daily_totals.date,
+                'transactions', (
+                    SELECT COALESCE(
+                        JSON_AGG(
+                            JSON_BUILD_OBJECT(
+                                'id', transaction.id,
+                                'name', transaction.name,
+                                'amount', transaction.amount,
+                                'description', transaction.description,
+                                'date', transaction.date,
+                                'transaction_type', transaction.transaction_type
+                            )
+                        ),
+                        '[]'::JSON
+                    )
+                    FROM transaction
+										WHERE transaction.account_id = $1 AND transaction.date = daily_totals.date AND transaction.transaction_type = ANY(@transaction_types::SMALLINT[])
+                )
+            )
+        ),
+        '[]'::JSON
+    )
+) AS result
 FROM daily_totals;
+
 
 -- name: CountTransactions :one
 SELECT 
