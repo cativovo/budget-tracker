@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io/fs"
 	"log"
 
 	budgettracker "github.com/cativovo/budget-tracker"
@@ -25,16 +24,11 @@ func main() {
 	defer dbpool.Close()
 
 	queries := store.New(dbpool)
-	viteManifest, err := budgettracker.Dist.Open("dist/.vite/manifest.json")
-	if err != nil {
-		panic(err)
-	}
-	defer viteManifest.Close()
-	assets, err := fs.Sub(budgettracker.Dist, "dist/assets")
-	if err != nil {
-		panic(err)
-	}
-	v := vite.NewVite(cfg.Env == "development", viteManifest, assets)
+
+	v := vite.NewVite(vite.ViteConfig{
+		IsDev:  cfg.Env == "development",
+		DistFS: budgettracker.Dist,
+	})
 
 	server := server.NewServer(server.Resource{
 		TransactionStore: queries,

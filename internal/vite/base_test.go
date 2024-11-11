@@ -9,28 +9,37 @@ import (
 )
 
 func TestAssets(t *testing.T) {
-	viteManifest, err := os.Open("testdata/dist/.vite/manifest.json")
-	if err != nil {
-		t.Fatal(err)
+	testCases := []struct {
+		want   string
+		config vite.ViteConfig
+	}{
+		{
+			config: vite.ViteConfig{
+				DistFS: os.DirFS("testdata"),
+				IsDev:  true,
+			},
+			want: `<script type="module" src="http://localhost:5173/@vite/client"></script><script type="module" src="http://localhost:5173/js/index.js"></script>`,
+		},
+		{
+			config: vite.ViteConfig{
+				DistFS: os.DirFS("testdata"),
+				IsDev:  false,
+			},
+			want: `<link rel="stylesheet" href="/assets/index-Ckppcp00.css"><script type="module" src="/assets/index-CUUi8ibQ.js"></script>`,
+		},
+		{
+			config: vite.ViteConfig{
+				DistFS:   os.DirFS("testdata"),
+				Manifest: "customdist/.vite/manifest.json",
+				Assets:   "customdist/assets",
+				IsDev:    false,
+			},
+			want: `<link rel="stylesheet" href="/assets/index-Ckppcp00.css"><script type="module" src="/assets/index-CUUi8ibQ.js"></script>`,
+		},
 	}
-	defer viteManifest.Close()
-	assets := os.DirFS("testdata/dist/assets")
 
-	testDev := func() {
-		v := vite.NewVite(true, viteManifest, assets)
-		want := `
-			<script type="module" src="http://localhost:5173/@vite/client"></script>
-			<script type="module" src="http://localhost:5173/js/index.js"></script>
-		`
-		assert.Equal(t, want, v.Assets(), "testDev failed")
+	for _, testCase := range testCases {
+		v := vite.NewVite(testCase.config)
+		assert.Equal(t, testCase.want, v.Assets(), "testProduction failed")
 	}
-
-	testProduction := func() {
-		v := vite.NewVite(false, viteManifest, assets)
-		want := `<link rel="stylesheet" href="/assets/index-Ckppcp00.css"><script type="module" src="/assets/index-CUUi8ibQ.js"></script>`
-		assert.Equal(t, want, v.Assets(), "testProduction failed")
-	}
-
-	testDev()
-	testProduction()
 }
