@@ -27,18 +27,29 @@ const envKey = "BUDGET_TRACKER_ENV"
 
 // https://github.com/joho/godotenv?tab=readme-ov-file#precedence--conventions
 func loadEnv() []string {
+	var loadedFiles []string
 	env := os.Getenv(envKey)
+
+	log.Println("loading env files")
+	log.Println("env:", env)
+
 	if env == "" {
 		env = "development"
 		os.Setenv(envKey, env)
 	}
 
-	var loadedFiles []string
+	f := ".env." + env
+	if err := godotenv.Load(f); err != nil {
+		log.Println(err)
+	} else {
+		loadedFiles = append(loadedFiles, f)
+	}
 
-	log.Println("loading env files")
-	log.Println("env:", env)
+	if env == "production" {
+		return loadedFiles
+	}
 
-	f := ".env." + env + ".local"
+	f = ".env." + env + ".local"
 	if err := godotenv.Load(".env." + env + ".local"); err != nil {
 		log.Println(err)
 	} else {
@@ -53,13 +64,6 @@ func loadEnv() []string {
 		} else {
 			loadedFiles = append(loadedFiles, f)
 		}
-	}
-
-	f = ".env." + env
-	if err := godotenv.Load(f); err != nil {
-		log.Println(err)
-	} else {
-		loadedFiles = append(loadedFiles, f)
 	}
 
 	// The Original .env
