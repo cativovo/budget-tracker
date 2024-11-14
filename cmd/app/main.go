@@ -4,11 +4,9 @@ import (
 	"context"
 	"log"
 
-	budgettracker "github.com/cativovo/budget-tracker"
 	"github.com/cativovo/budget-tracker/internal/config"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/cativovo/budget-tracker/internal/server"
-	"github.com/cativovo/budget-tracker/internal/vite"
 )
 
 func main() {
@@ -23,15 +21,7 @@ func main() {
 	}
 	defer r.Close()
 
-	v := vite.NewVite(vite.ViteConfig{
-		IsDev:  cfg.Env == "development",
-		DistFS: budgettracker.Dist,
-	})
-
-	server := server.NewServer(server.Resource{
-		TransactionStore: r,
-		AssetsStore:      v,
-	})
+	server := server.NewServer(server.Resource{})
 
 	log.Fatal(server.Start(":" + cfg.Port))
 }

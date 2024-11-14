@@ -3,60 +3,27 @@ package server
 import (
 	"net/http"
 
-	"github.com/a-h/templ"
-	"github.com/cativovo/budget-tracker/internal/ui"
-	"github.com/cativovo/budget-tracker/internal/ui/pages"
+	"github.com/cativovo/budget-tracker/ui"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
-type AssetsStore interface {
-	ui.AssetsStore
-	AssetsFs() http.FileSystem
-}
-
-type Resource struct {
-	TransactionStore TransactionStore
-	AssetsStore      AssetsStore
-}
+type Resource struct{}
 
 func NewServer(r Resource) *echo.Echo {
 	e := echo.New()
-
 	e.Use(middleware.Gzip())
+	e.Use(middleware.Logger())
+	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
+		HTML5:      true,
+		Filesystem: http.FS(ui.DistDirFS),
+	}))
 
-	homeResource{
-		transactionStore: r.TransactionStore,
-		assetsStore:      r.AssetsStore,
-	}.mountRoutes(e)
-
-	e.GET("/assets/*", echo.WrapHandler(http.StripPrefix("/assets/", http.FileServer(r.AssetsStore.AssetsFs()))))
-	e.HTTPErrorHandler = httpErrorHandler
+	api := e.Group("/api")
+	api.GET("/foo", func(c echo.Context) error {
+		t := []string{"uno", "dos", "tres"}
+		return c.JSON(http.StatusOK, t)
+	})
 
 	return e
-}
-
-func render(c echo.Context, statusCode int, t templ.Component) error {
-	buf := templ.GetBuffer()
-	defer templ.ReleaseBuffer(buf)
-
-	if err := t.Render(c.Request().Context(), buf); err != nil {
-		return err
-	}
-
-	return c.HTML(statusCode, buf.String())
-}
-
-func httpErrorHandler(err error, c echo.Context) {
-	statusCode := http.StatusInternalServerError
-	if he, ok := err.(*echo.HTTPError); ok {
-		statusCode = he.Code
-	}
-
-	err = render(c, statusCode, pages.Error(pages.ErrorProps{
-		StatusCode: statusCode,
-	}))
-	if err != nil {
-		c.Logger().Error(err)
-	}
 }
