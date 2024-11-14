@@ -1,13 +1,14 @@
 package pages
 
-import "github.com/cativovo/budget-tracker/internal/ui/layouts"
-import "github.com/cativovo/budget-tracker/internal/store"
-import "github.com/cativovo/budget-tracker/internal/constants"
-import "fmt"
-import "github.com/cativovo/budget-tracker/internal/ui"
+import (
+	"fmt"
+	"github.com/cativovo/budget-tracker/internal/repository"
+	"github.com/cativovo/budget-tracker/internal/ui"
+	"github.com/cativovo/budget-tracker/internal/ui/layouts"
+)
 
 type HomeProps struct {
-	Transactions []store.TransactionByDateRow
+	Transactions []repository.TransactionsByDate
 	QueryParams  string
 	HasNextPage  bool
 	AssetsStore  ui.AssetsStore
@@ -22,13 +23,13 @@ templ Home(props HomeProps) {
 				if len(v.Transactions) > 0 {
 					<li>
 						<div class="flex py-1 text-xs">
-							<span>{ v.Date.Time.Format("January 02, Monday") } </span>
+							<span>{ v.Date.Format("January 02, Monday") } </span>
 							<div class="inline-block ml-auto space-x-2">
-								if !v.TotalExpenses.IsZero() {
-									<span>Expenses: { v.TotalExpenses.String() }</span>
+								if v.TotalExpenses> 0 {
+									<span>Expense: { formatAmount(v.TotalExpenses, repository.TransactionTypeExpense) }</span>
 								}
-								if !v.TotalIncome.IsZero() {
-									<span>Income: { v.TotalIncome.String() }</span>
+								if v.TotalIncome > 0 {
+									<span>Income: { formatAmount(v.TotalIncome, repository.TransactionTypeIncome) }</span>
 								}
 							</div>
 						</div>
@@ -60,13 +61,16 @@ templ Home(props HomeProps) {
 	}
 }
 
-func formatAmount(amount float64, transactionType int16) string {
+func formatAmount(amount int, transactionType repository.TransactionType) string {
 	var symbol string
 	switch transactionType {
-	case constants.TransactionTypeExpense:
+	case repository.TransactionTypeExpense:
 		symbol = "-"
-	case constants.TransactionTypeIncome:
+	case repository.TransactionTypeIncome:
 		symbol = "+"
 	}
-	return fmt.Sprintf("%s%.2f", symbol, amount)
+
+	const centsInPeso float64 = 100
+
+	return fmt.Sprintf("%s%.2f", symbol, float64(amount)/2)
 }

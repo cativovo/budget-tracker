@@ -12,9 +12,8 @@ import (
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/cativovo/budget-tracker/internal/config"
-	"github.com/cativovo/budget-tracker/internal/store"
+	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/shopspring/decimal"
 )
 
 type flags struct {
@@ -38,27 +37,26 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dbpool, err := store.InitDB(context.Background(), cfg.DB)
+
+	r, err := repository.NewRepository(context.Background(), cfg.DB)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
-	defer dbpool.Close()
+	defer r.Close()
 
 	if flags.clean {
-		cleanDB(dbpool)
+		cleanDB(r.DBPool())
 		return
 	}
 
 	log.Println("seeding...")
 
-	queries := store.New(dbpool)
-	account, err := queries.CreateAccount(context.Background(), gofakeit.Name())
-	if err != nil {
-		log.Fatal(err)
-	}
+	account, err := r.CreateAccount(context.Background(), repository.CreateAccountParams{
+		Name: gofakeit.Name(),
+	})
 
 	var wg sync.WaitGroup
-	categoryChan := make(chan store.CreateCategoryRow)
+	categoryChan := make(chan repository.CreateCategoryRow)
 
 	minCategory := 2
 	maxCategory := 10
@@ -67,7 +65,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			category, err := queries.CreateCategory(context.Background(), store.CreateCategoryParams{
+			category, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
 				Name:      gofakeit.Noun(),
 				Icon:      strings.ToLower(gofakeit.Noun()),
 				ColorHex:  gofakeit.HexColor()[1:],
@@ -94,35 +92,28 @@ func main() {
 					transactionCount := rand.IntN(maxTransaction) + minTransaction + 1
 
 					for i := 0; i < transactionCount; i++ {
-						description, err := store.NewText(gofakeit.SentenceSimple())
-						if err != nil {
-							log.Fatal("encountered an error in expense seed:", err)
-						}
-
 						startDate := time.Date(2024, time.September, 1, 0, 0, 0, 0, time.UTC)
 						endDate := time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)
-						fakeDate := gofakeit.DateRange(startDate, endDate).Format("2006-01-02")
-						date, err := store.NewDate(fakeDate)
-						if err != nil {
-							log.Fatal("encountered an error in expense seed:", err)
-						}
+						fakeDate := gofakeit.DateRange(startDate, endDate)
 
-						trasactionTypes := []int16{0, 1}
+						trasactionTypes := []repository.TransactionType{repository.TransactionTypeExpense, repository.TransactionTypeIncome}
 						transactionType := trasactionTypes[rand.IntN(len(trasactionTypes))]
 
-						if transactionType == 0 {
+						if transactionType == repository.TransactionTypeExpense {
 							expenseCountChan <- 1
 						} else {
 							incomeCountChan <- 1
 						}
 
-						result, err := queries.CreateTransaction(context.Background(), store.CreateTransactionParams{
+						description := gofakeit.SentenceSimple()
+
+						result, err := r.CreateTransaction(context.Background(), repository.CreateTransactionParams{
 							TransactionType: transactionType,
 							Name:            gofakeit.Noun(),
-							Amount:          decimal.NewFromFloat(gofakeit.Price(10.0, 1000.0)),
-							Description:     description,
-							Date:            date,
-							CategoryID:      category.ID,
+							Amount:          gofakeit.IntRange(1000, 10000),
+							Description:     &description,
+							Date:            &fakeDate,
+							CategoryID:      &category.ID,
 							AccountID:       account.ID,
 						})
 						if err != nil {
@@ -165,11 +156,11 @@ LOOP:
 	}
 
 	log.Println("done seeding")
-	accountID, err := account.ID.MarshalJSON()
+	accountID := account.ID.String()
 	if err != nil {
 		log.Fatal("unmarshal account id:", err)
 	}
-	log.Println("account id:", string(accountID))
+	log.Println("account id:", accountID)
 	log.Printf("results: category: %d, expense: %d, income: %d", categoryCount, expenseCount, incomeCount)
 }
 

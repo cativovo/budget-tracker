@@ -6,8 +6,9 @@ import (
 	"time"
 
 	"github.com/cativovo/budget-tracker/internal/constants"
-	"github.com/cativovo/budget-tracker/internal/store"
+	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/cativovo/budget-tracker/internal/ui/pages"
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 )
 
@@ -23,10 +24,10 @@ func (hr homeResource) mountRoutes(e *echo.Echo) {
 
 func (hr homeResource) homePage(c echo.Context) error {
 	type query struct {
-		StartDate        string  `query:"start_date"`
-		EndDate          string  `query:"end_date"`
-		TransactionTypes []int16 `query:"transaction_type"`
-		Page             int     `query:"page"`
+		StartDate        string                       `query:"start_date"`
+		EndDate          string                       `query:"end_date"`
+		TransactionTypes []repository.TransactionType `query:"transaction_type"`
+		Page             int                          `query:"page"`
 	}
 
 	var q query
@@ -36,7 +37,7 @@ func (hr homeResource) homePage(c echo.Context) error {
 	}
 
 	// TODO: get from cookie
-	accountID, err := store.NewUUID("5b064dea-14d9-4696-9dba-d55f013f35b1")
+	accountID, err := uuid.Parse("c353143b-b608-4d63-9dc4-f7c434f2a3ff")
 	if err != nil {
 		c.Logger().Error(err)
 		return err
@@ -45,29 +46,17 @@ func (hr homeResource) homePage(c echo.Context) error {
 	now := time.Now()
 	year := now.Year()
 	month := now.Month()
-	start := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC)
+	startDate := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC)
 
 	if q.StartDate != "" && q.EndDate != "" {
 		s, sErr := time.Parse(constants.DateFormat, q.StartDate)
 		e, eErr := time.Parse(constants.DateFormat, q.EndDate)
 
 		if sErr == nil && eErr == nil {
-			start = s
-			end = e
+			startDate = s
+			endDate = e
 		}
-	}
-
-	startDate, err := store.NewDate(start)
-	if err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-
-	endDate, err := store.NewDate(end)
-	if err != nil {
-		c.Logger().Error(err)
-		return err
 	}
 
 	page := q.Page
@@ -85,24 +74,27 @@ func (hr homeResource) homePage(c echo.Context) error {
 
 	transactionTypes := q.TransactionTypes
 	if len(transactionTypes) == 0 {
-		transactionTypes = []int16{constants.TransactionTypeExpense, constants.TransactionTypeIncome}
+		transactionTypes = []repository.TransactionType{
+			repository.TransactionTypeIncome,
+			repository.TransactionTypeExpense,
+		}
 	}
 
 	queryParams := fmt.Sprintf(
 		"page=%d&start_date=%s&end_date=%s",
 		page+1,
-		start.Format(constants.DateFormat),
-		end.Format(constants.DateFormat),
+		startDate.Format(constants.DateFormat),
+		endDate.Format(constants.DateFormat),
 	)
 	for _, v := range transactionTypes {
-		queryParams += fmt.Sprintf("&transaction_type=%d", v)
+		queryParams += fmt.Sprintf("&transaction_type=%s", v)
 	}
 
-	r, err := hr.transactionStore.ListTransactionsByDate(c.Request().Context(), store.ListTransactionsByDateParams{
+	r, err := hr.transactionStore.ListTransactionsByDate(c.Request().Context(), repository.ListTransactionsByDateParams{
 		TransactionTypes: transactionTypes,
 		AccountID:        accountID,
-		Limit:            int32(limit),
-		Offset:           int32(offset),
+		Limit:            limit,
+		Offset:           offset,
 		StartDate:        startDate,
 		EndDate:          endDate,
 	})
@@ -111,14 +103,8 @@ func (hr homeResource) homePage(c echo.Context) error {
 		return err
 	}
 
-	t, err := store.ParseListTransactionsByDateRows(r)
-	if err != nil {
-		c.Logger().Error(err)
-		return err
-	}
-
 	return render(c, http.StatusOK, pages.Home(pages.HomeProps{
-		Transactions: t,
+		Transactions: r.TransactionsByDate,
 		QueryParams:  queryParams,
 		HasNextPage:  false,
 		AssetsStore:  hr.assetsStore,

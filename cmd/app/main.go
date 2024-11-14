@@ -6,8 +6,8 @@ import (
 
 	budgettracker "github.com/cativovo/budget-tracker"
 	"github.com/cativovo/budget-tracker/internal/config"
+	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/cativovo/budget-tracker/internal/server"
-	"github.com/cativovo/budget-tracker/internal/store"
 	"github.com/cativovo/budget-tracker/internal/vite"
 )
 
@@ -17,13 +17,11 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dbpool, err := store.InitDB(context.Background(), cfg.DB)
+	r, err := repository.NewRepository(context.Background(), cfg.DB)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer dbpool.Close()
-
-	queries := store.New(dbpool)
+	defer r.Close()
 
 	v := vite.NewVite(vite.ViteConfig{
 		IsDev:  cfg.Env == "development",
@@ -31,7 +29,7 @@ func main() {
 	})
 
 	server := server.NewServer(server.Resource{
-		TransactionStore: queries,
+		TransactionStore: r,
 		AssetsStore:      v,
 	})
 

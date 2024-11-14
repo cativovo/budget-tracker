@@ -1,3 +1,7 @@
+ENV_FILE ?= .env.development.local
+include $(ENV_FILE)
+export
+
 seed:
 	go run ./cmd/seed
 
@@ -23,7 +27,8 @@ live:
 	make -j3 liveassets livetempl liveserver
 
 generate:
-	go generate ./...
+	go run github.com/go-jet/jet/v2/cmd/jet@v2.12.0 -dsn=postgresql://$$POSTGRES_USER:$$POSTGRES_PASSWORD@$$POSTGRES_HOST:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=$$POSTGRES_SSL -path=internal/repository
+	go run github.com/a-h/templ/cmd/templ@v0.2.793 generate
 
 build: generate
 	pnpm run build
