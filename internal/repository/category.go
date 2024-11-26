@@ -2,50 +2,82 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
-	"github.com/cativovo/budget-tracker/internal/repository/budget_tracker/public/model"
-	"github.com/cativovo/budget-tracker/internal/repository/budget_tracker/public/table"
-	"github.com/google/uuid"
+	sq "github.com/Masterminds/squirrel"
+	"github.com/cativovo/budget-tracker/internal/models"
 )
+
+type category struct {
+	CreatedAt string `db:"created_at"`
+	UpdatedAt string `db:"updated_at"`
+	ID        string `db:"id"`
+	Name      string `db:"name"`
+	Icon      string `db:"icon"`
+	ColorHex  string `db:"color_hex"`
+}
+
+type GetCategoryByIDParams struct {
+	ID        string
+	AccountID string
+}
+
+func (r *Repository) GetCategoryByID(ctx context.Context, p GetCategoryByIDParams) (models.Category, error) {
+	q, args, err := sq.
+		Select("id", "name", "icon", "color_hex").
+		From("category").
+		Where(sq.Eq{"id": p.ID, "account_id": p.AccountID}).
+		ToSql()
+	if err != nil {
+		return models.Category{}, fmt.Errorf("GetCategoryByID: query builder failed: %w", err)
+	}
+
+	r.logger.Infow("Executing query", "query", q, "args", args)
+
+	var dest category
+	err = r.ConcurrentDB().GetContext(ctx, &dest, q, args...)
+	if err != nil {
+		return models.Category{}, fmt.Errorf("GetCategoryByID: query failed: %w", err)
+	}
+
+	return models.Category{
+		ID:       dest.ID,
+		Name:     dest.Name,
+		Icon:     dest.Icon,
+		ColorHex: dest.ColorHex,
+	}, nil
+}
 
 type CreateCategoryParams struct {
 	Name      string
 	Icon      string
 	ColorHex  string
-	AccountID uuid.UUID
+	AccountID string
 }
 
-type CreateCategoryRow struct {
-	Name     string    `alias:"category.name"`
-	Icon     string    `alias:"category.icon"`
-	ColorHex string    `alias:"category.color_hex"`
-	ID       uuid.UUID `alias:"category.id"`
-}
-
-func (r *Repository) CreateCategory(ctx context.Context, p CreateCategoryParams) (CreateCategoryRow, error) {
-	m := model.Category{
-		Name:      p.Name,
-		Icon:      p.Icon,
-		ColorHex:  p.ColorHex,
-		AccountID: p.AccountID,
+func (r *Repository) CreateCategory(ctx context.Context, p CreateCategoryParams) (models.Category, error) {
+	q, args, err := sq.
+		Insert("category").
+		Columns("name", "icon", "color_hex", "account_id").
+		Values(p.Name, p.Icon, p.ColorHex, p.AccountID).
+		Suffix(`RETURNING "id", "name", "icon", "color_hex"`).
+		ToSql()
+	if err != nil {
+		return models.Category{}, fmt.Errorf("CreateCategory: query builder failed: %w", err)
 	}
 
-	q := table.Category.
-		INSERT(
-			table.Category.Name,
-			table.Category.Icon,
-			table.Category.ColorHex,
-			table.Category.AccountID,
-		).
-		MODEL(m).
-		RETURNING(
-			table.Category.Name,
-			table.Category.Icon,
-			table.Category.ColorHex,
-			table.Category.ID,
-		)
+	r.logger.Infow("Executing query", "query", q, "args", args)
 
-	var row CreateCategoryRow
-	err := q.QueryContext(ctx, r.OpenDBFromPool(), &row)
-	return row, err
+	var dest category
+	err = r.NonConcurrentDB().GetContext(ctx, &dest, q, args...)
+	if err != nil {
+		return models.Category{}, fmt.Errorf("CreateCategory: query failed: %w", err)
+	}
+
+	return models.Category{
+		ID:       dest.ID,
+		Name:     dest.Name,
+		Icon:     dest.Icon,
+		ColorHex: dest.ColorHex,
+	}, nil
 }

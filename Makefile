@@ -23,10 +23,10 @@ liveserver:
 live:
 	make -j2 liveui liveserver
 
-generate:
-	go run github.com/go-jet/jet/v2/cmd/jet@v2.12.0 -dsn=postgresql://$$POSTGRES_USER:$$POSTGRES_PASSWORD@$$POSTGRES_HOST:$$POSTGRES_PORT/$$POSTGRES_DB?sslmode=$$POSTGRES_SSL -path=internal/repository
+test:
+	go test ./...
 
-build: generate
+build:
 	pnpm --dir ./ui run build
 	go build -o ./bin/app ./cmd/app
 

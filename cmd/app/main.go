@@ -2,26 +2,59 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/cativovo/budget-tracker/internal/config"
+	"github.com/cativovo/budget-tracker/internal/models"
 	"github.com/cativovo/budget-tracker/internal/repository"
-	"github.com/cativovo/budget-tracker/internal/server"
+	"go.uber.org/zap"
 )
 
 func main() {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
 
-	r, err := repository.NewRepository(context.Background(), cfg.DB)
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+
+	defer logger.Sync()
+
+	suggaredLogger := logger.Sugar()
+
+	r, err := repository.NewRepository(cfg.DBPath, suggaredLogger)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer r.Close()
 
-	server := server.NewServer(server.Resource{})
+	if err := r.Migrate(); err != nil {
+		suggaredLogger.Fatal(err)
+	}
 
-	log.Fatal(server.Start(":" + cfg.Port))
+	ey, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		StartDate: time.Now().AddDate(0, 0, -5).Format("2006-01-02"),
+		EndDate:   time.Now().Format("2006-01-02"),
+		AccountID: "237B59CB8AFFF758",
+		EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+		Limit:     10,
+		Offset:    0,
+		OrderBy:   repository.Desc,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	b, err := json.MarshalIndent(&ey, "  ", "  ")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(string(b))
 }

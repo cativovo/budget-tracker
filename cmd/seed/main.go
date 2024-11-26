@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"log"
 	"math/rand/v2"
 	"strings"
@@ -12,8 +11,10 @@ import (
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/cativovo/budget-tracker/internal/config"
+	"github.com/cativovo/budget-tracker/internal/models"
 	"github.com/cativovo/budget-tracker/internal/repository"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
 type flags struct {
@@ -30,22 +31,33 @@ func getFlags() flags {
 }
 
 func main() {
+	logger, err := zap.NewProduction()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
+
+	sugaredLogger := logger.Sugar()
+
 	flags := getFlags()
-	fmt.Println(flags)
+	sugaredLogger.Infof("flags: %+v", flags)
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	}
 
-	r, err := repository.NewRepository(context.Background(), cfg.DB)
+	r, err := repository.NewRepository(cfg.DBPath, sugaredLogger)
 	if err != nil {
-		panic(err)
+		sugaredLogger.Fatal(err)
+	}
+	if err := r.Migrate(); err != nil {
+		sugaredLogger.Fatal(err)
 	}
 	defer r.Close()
 
 	if flags.clean {
-		cleanDB(r.DBPool())
+		cleanDB(r.NonConcurrentDB(), sugaredLogger)
 		return
 	}
 
@@ -56,7 +68,7 @@ func main() {
 	})
 
 	var wg sync.WaitGroup
-	categoryChan := make(chan repository.CreateCategoryRow)
+	categoryIDChan := make(chan *string)
 
 	minCategory := 2
 	maxCategory := 10
@@ -65,16 +77,22 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+
+			if i%2 == 0 {
+				categoryIDChan <- nil
+				return
+			}
+
 			category, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
 				Name:      gofakeit.Noun(),
 				Icon:      strings.ToLower(gofakeit.Noun()),
-				ColorHex:  gofakeit.HexColor()[1:],
+				ColorHex:  gofakeit.HexColor(),
 				AccountID: account.ID,
 			})
 			if err != nil {
-				log.Fatal("encountered an error in category seed:", err)
+				sugaredLogger.Fatal(err)
 			}
-			categoryChan <- category
+			categoryIDChan <- &category.ID
 		}()
 	}
 
@@ -85,7 +103,7 @@ func main() {
 
 	for i := 0; i < numTask; i++ {
 		go func() {
-			for category := range categoryChan {
+			for categoryID := range categoryIDChan {
 				createExpenses := func() {
 					minTransaction := 0
 					maxTransaction := 100
@@ -96,10 +114,10 @@ func main() {
 						endDate := time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)
 						fakeDate := gofakeit.DateRange(startDate, endDate)
 
-						trasactionTypes := []repository.TransactionType{repository.TransactionTypeExpense, repository.TransactionTypeIncome}
-						transactionType := trasactionTypes[rand.IntN(len(trasactionTypes))]
+						entryTypes := []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome}
+						entryType := entryTypes[rand.IntN(len(entryTypes))]
 
-						if transactionType == repository.TransactionTypeExpense {
+						if entryType == models.EntryTypeExpense {
 							expenseCountChan <- 1
 						} else {
 							incomeCountChan <- 1
@@ -107,17 +125,17 @@ func main() {
 
 						description := gofakeit.SentenceSimple()
 
-						result, err := r.CreateTransaction(context.Background(), repository.CreateTransactionParams{
-							TransactionType: transactionType,
-							Name:            gofakeit.Noun(),
-							Amount:          gofakeit.IntRange(1000, 10000),
-							Description:     &description,
-							Date:            &fakeDate,
-							CategoryID:      &category.ID,
-							AccountID:       account.ID,
+						result, err := r.CreateEntry(context.Background(), repository.CreateEntryParams{
+							EntryType:   entryType,
+							Name:        gofakeit.Noun(),
+							Amount:      gofakeit.IntRange(1000, 10000),
+							Description: &description,
+							Date:        fakeDate.Format("2006-01-02"),
+							CategoryID:  categoryID,
+							AccountID:   account.ID,
 						})
 						if err != nil {
-							log.Fatal("encountered an error in expense seed:", err)
+							sugaredLogger.Fatal(err)
 						}
 						_ = result
 					}
@@ -156,23 +174,23 @@ LOOP:
 	}
 
 	log.Println("done seeding")
-	accountID := account.ID.String()
+	accountID := account.ID
 	if err != nil {
-		log.Fatal("unmarshal account id:", err)
+		sugaredLogger.Fatal(err)
 	}
 	log.Println("account id:", accountID)
 	log.Printf("results: category: %d, expense: %d, income: %d", categoryCount, expenseCount, incomeCount)
 }
 
-func cleanDB(dbpool *pgxpool.Pool) {
+func cleanDB(db *sqlx.DB, sugaredLogger *zap.SugaredLogger) {
 	log.Println("cleaning db...")
-	c, err := dbpool.Exec(context.Background(), `
-		DELETE FROM transaction;
+	c, err := db.ExecContext(context.Background(), `
+		DELETE FROM entry;
 		DELETE FROM category;
 		DELETE FROM account;
 		`)
 	if err != nil {
-		log.Fatal(err)
+		sugaredLogger.Fatal(err)
 	}
 
 	log.Println(c.RowsAffected())

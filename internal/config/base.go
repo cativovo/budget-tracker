@@ -8,19 +8,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-type DBConfig struct {
-	Password string
-	User     string
-	DB       string
-	Host     string
-	Port     string
-	SSL      string
-}
-
 type Config struct {
-	Env  string
-	Port string
-	DB   DBConfig
+	Env    string
+	Port   string
+	DBPath string
 }
 
 const envKey = "BUDGET_TRACKER_ENV"
@@ -87,18 +78,9 @@ func LoadConfig() (Config, error) {
 		log.Println("env vars loaded from", f)
 	}
 
-	dbCfg := DBConfig{
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-		User:     os.Getenv("POSTGRES_USER"),
-		DB:       os.Getenv("POSTGRES_DB"),
-		Host:     os.Getenv("POSTGRES_HOST"),
-		Port:     os.Getenv("POSTGRES_PORT"),
-		SSL:      os.Getenv("POSTGRES_SSL"),
-	}
-
 	return Config{
-		Port: os.Getenv("PORT"),
-		DB:   dbCfg,
-		Env:  os.Getenv(envKey),
+		Port:   os.Getenv("PORT"),
+		DBPath: os.Getenv("DB_PATH"),
+		Env:    os.Getenv(envKey),
 	}, nil
 }

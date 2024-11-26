@@ -1,37 +1,59 @@
 package repository
 
 import (
-	"context"
-	"database/sql"
+	"time"
 
-	"github.com/cativovo/budget-tracker/internal/config"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
 type Repository struct {
-	dbPool *pgxpool.Pool
+	concurrentDB    *sqlx.DB
+	nonConcurrentDB *sqlx.DB
+	logger          *zap.SugaredLogger
 }
 
-func NewRepository(ctx context.Context, cfg config.DBConfig) (*Repository, error) {
-	dbPool, err := newDBPool(ctx, cfg)
+func NewRepository(dbPath string, logger *zap.SugaredLogger) (*Repository, error) {
+	const (
+		maxOpenConns int           = 120
+		maxIdleConns int           = 15
+		maxIdleTime  time.Duration = 3 * time.Minute
+	)
+
+	concurrentDB, err := connectDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
 
+	concurrentDB.SetMaxOpenConns(maxOpenConns)
+	concurrentDB.SetMaxIdleConns(maxIdleConns)
+	concurrentDB.SetConnMaxIdleTime(maxIdleTime)
+
+	nonConcurrentDB, err := connectDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	nonConcurrentDB.SetMaxOpenConns(1)
+	nonConcurrentDB.SetMaxIdleConns(1)
+	nonConcurrentDB.SetConnMaxIdleTime(maxIdleTime)
+
 	return &Repository{
-		dbPool: dbPool,
+		concurrentDB:    concurrentDB,
+		nonConcurrentDB: nonConcurrentDB,
+		logger:          logger,
 	}, nil
 }
 
-func (r *Repository) DBPool() *pgxpool.Pool {
-	return r.dbPool
+func (r *Repository) ConcurrentDB() *sqlx.DB {
+	return r.concurrentDB
+}
+
+func (r *Repository) NonConcurrentDB() *sqlx.DB {
+	return r.concurrentDB
 }
 
 func (r *Repository) Close() {
-	r.dbPool.Close()
-}
-
-func (r *Repository) OpenDBFromPool() *sql.DB {
-	return stdlib.OpenDBFromPool(r.dbPool)
+	r.concurrentDB.Close()
+	r.nonConcurrentDB.Close()
 }

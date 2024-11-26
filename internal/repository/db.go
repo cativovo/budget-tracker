@@ -1,53 +1,17 @@
 package repository
 
 import (
-	"context"
-	"database/sql"
-	"embed"
-	"fmt"
-
-	"github.com/cativovo/budget-tracker/internal/config"
-	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/jackc/pgx/v5/stdlib"
-	"github.com/pressly/goose/v3"
+	"github.com/jmoiron/sqlx"
+	_ "modernc.org/sqlite"
 )
 
-//go:embed all:migrations
-var embedMigrations embed.FS
+// https://github.com/pocketbase/pocketbase/blob/0ac4a388c000f98bcec830de6819b1776d0ee242/core/db_connect.go#L10
+func connectDB(dbPath string) (*sqlx.DB, error) {
+	// Note: the busy_timeout pragma must be first because
+	// the connection needs to be set to block on busy before WAL mode
+	// is set in case it hasn't been already set by another connection.
+	pragmas := "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=journal_size_limit(200000000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)&_pragma=temp_store(MEMORY)&_pragma=cache_size(-16000)"
+	dsn := dbPath + pragmas
 
-func migrate(db *sql.DB) error {
-	if err := goose.SetDialect("postgres"); err != nil {
-		return err
-	}
-
-	goose.SetBaseFS(embedMigrations)
-	if err := goose.Up(db, "migrations"); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func newDBPool(ctx context.Context, cfg config.DBConfig) (*pgxpool.Pool, error) {
-	connString := fmt.Sprintf(
-		"user=%s password=%s host=%s port=%s dbname=%s sslmode=%s",
-		cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.DB, cfg.SSL,
-	)
-
-	pgxpoolCfg, err := pgxpool.ParseConfig(connString)
-	if err != nil {
-		return nil, fmt.Errorf("InitiDB: %w", err)
-	}
-
-	dbpool, err := pgxpool.NewWithConfig(ctx, pgxpoolCfg)
-	if err != nil {
-		return nil, fmt.Errorf("InitiDB: %w", err)
-	}
-
-	db := stdlib.OpenDBFromPool(dbpool)
-	if err := migrate(db); err != nil {
-		return nil, fmt.Errorf("InitiDB: %w", err)
-	}
-
-	return dbpool, nil
+	return sqlx.Open("sqlite", dsn)
 }
