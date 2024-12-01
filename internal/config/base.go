@@ -2,10 +2,10 @@ package config
 
 import (
 	"errors"
-	"log"
 	"os"
 
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 )
 
 type Config struct {
@@ -17,21 +17,22 @@ type Config struct {
 const envKey = "BUDGET_TRACKER_ENV"
 
 // https://github.com/joho/godotenv?tab=readme-ov-file#precedence--conventions
-func loadEnv() []string {
+func loadEnv(logger *zap.SugaredLogger) []string {
 	var loadedFiles []string
 	env := os.Getenv(envKey)
 
-	log.Println("loading env files")
-	log.Println("env:", env)
+	logger.Info("loading env files")
 
 	if env == "" {
 		env = "development"
 		os.Setenv(envKey, env)
 	}
 
+	logger.Infof("env: %s", env)
+
 	f := ".env." + env
 	if err := godotenv.Load(f); err != nil {
-		log.Println(err)
+		logger.Warn(err)
 	} else {
 		loadedFiles = append(loadedFiles, f)
 	}
@@ -42,7 +43,7 @@ func loadEnv() []string {
 
 	f = ".env." + env + ".local"
 	if err := godotenv.Load(".env." + env + ".local"); err != nil {
-		log.Println(err)
+		logger.Warn(err)
 	} else {
 		loadedFiles = append(loadedFiles, f)
 	}
@@ -51,7 +52,7 @@ func loadEnv() []string {
 		f = ".env.local"
 		err := godotenv.Load(f)
 		if err != nil {
-			log.Println(err)
+			logger.Warn(err)
 		} else {
 			loadedFiles = append(loadedFiles, f)
 		}
@@ -59,7 +60,7 @@ func loadEnv() []string {
 
 	// The Original .env
 	if err := godotenv.Load(); err != nil {
-		log.Println(err)
+		logger.Warn(err)
 	} else {
 		loadedFiles = append(loadedFiles, ".env")
 	}
@@ -67,15 +68,15 @@ func loadEnv() []string {
 	return loadedFiles
 }
 
-func LoadConfig() (Config, error) {
-	loadedFiles := loadEnv()
+func LoadConfig(logger *zap.SugaredLogger) (Config, error) {
+	loadedFiles := loadEnv(logger)
 
 	if len(loadedFiles) == 0 {
 		return Config{}, errors.New("no env file found")
 	}
 
 	for _, f := range loadedFiles {
-		log.Println("env vars loaded from", f)
+		logger.Info("env vars loaded from", f)
 	}
 
 	return Config{

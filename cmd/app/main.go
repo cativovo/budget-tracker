@@ -14,19 +14,18 @@ import (
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		panic(err)
-	}
-
 	logger, err := zap.NewProduction()
 	if err != nil {
 		panic(err)
 	}
 
 	defer logger.Sync()
-
 	suggaredLogger := logger.Sugar()
+
+	cfg, err := config.LoadConfig(suggaredLogger)
+	if err != nil {
+		panic(err)
+	}
 
 	r, err := repository.NewRepository(cfg.DBPath, suggaredLogger)
 	if err != nil {

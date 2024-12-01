@@ -42,7 +42,7 @@ func main() {
 	flags := getFlags()
 	sugaredLogger.Infof("flags: %+v", flags)
 
-	cfg, err := config.LoadConfig()
+	cfg, err := config.LoadConfig(sugaredLogger)
 	if err != nil {
 		sugaredLogger.Fatal(err)
 	}
