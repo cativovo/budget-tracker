@@ -83,7 +83,6 @@ func getLogger(c echo.Context) *zap.SugaredLogger {
 func applyMiddlewares(e *echo.Echo, r Resource) {
 	e.Use(middleware.RequestID())
 	e.Use(RequestLogger(r.Logger))
-	e.Use(middleware.Gzip())
 	e.Use(middleware.StaticWithConfig(middleware.StaticConfig{
 		HTML5:      true,
 		Filesystem: http.FS(ui.DistDirFS),
@@ -95,4 +94,5 @@ func applyMiddlewares(e *echo.Echo, r Resource) {
 			return err
 		},
 	}))
+	e.Use(middleware.Gzip())
 }

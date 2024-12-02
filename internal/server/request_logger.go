@@ -1,12 +1,8 @@
 package server
 
 import (
-	"bufio"
 	"bytes"
-	"errors"
 	"io"
-	"net"
-	"net/http"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -48,12 +44,6 @@ func RequestLogger(parentLogger *zap.SugaredLogger) echo.MiddlewareFunc {
 				"start_time", startTime.Format(time.RFC3339),
 			)
 
-			// Response
-			resBody := new(bytes.Buffer)
-			mw := io.MultiWriter(c.Response().Writer, resBody)
-			writer := &bodyDumpResponseWriter{Writer: mw, ResponseWriter: c.Response().Writer}
-			c.Response().Writer = writer
-
 			var err error
 			if err = next(c); err != nil {
 				c.Error(err)
@@ -68,9 +58,8 @@ func RequestLogger(parentLogger *zap.SugaredLogger) echo.MiddlewareFunc {
 				"uri", c.Request().RequestURI,
 				"method", c.Request().Method,
 				"status", res.Status,
-				"respose_body", resBody.String(),
-				"content_length", req.Header.Get(echo.HeaderContentLength),
 				"response_size", res.Size,
+				"content_length", req.Header.Get(echo.HeaderContentLength),
 				"error", err,
 				"end_time", endTime.Format(time.RFC3339),
 			)
@@ -78,33 +67,4 @@ func RequestLogger(parentLogger *zap.SugaredLogger) echo.MiddlewareFunc {
 			return err
 		}
 	}
-}
-
-// https://github.com/labstack/echo/blob/fe2627778114fc774a1b10920e1cd55fdd97cf00/middleware/body_dump.go#L30
-type bodyDumpResponseWriter struct {
-	io.Writer
-	http.ResponseWriter
-}
-
-func (w *bodyDumpResponseWriter) WriteHeader(code int) {
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *bodyDumpResponseWriter) Write(b []byte) (int, error) {
-	return w.Writer.Write(b)
-}
-
-func (w *bodyDumpResponseWriter) Flush() {
-	err := http.NewResponseController(w.ResponseWriter).Flush()
-	if err != nil && errors.Is(err, http.ErrNotSupported) {
-		panic(errors.New("response writer flushing is not supported"))
-	}
-}
-
-func (w *bodyDumpResponseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-	return http.NewResponseController(w.ResponseWriter).Hijack()
-}
-
-func (w *bodyDumpResponseWriter) Unwrap() http.ResponseWriter {
-	return w.ResponseWriter
 }
