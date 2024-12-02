@@ -6,6 +6,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/cativovo/budget-tracker/internal/models"
+	"go.uber.org/zap"
 )
 
 type ListEntriesByDateParams struct {
@@ -18,7 +19,7 @@ type ListEntriesByDateParams struct {
 	Offset    int
 }
 
-func (r *Repository) ListEntriesByDate(ctx context.Context, p ListEntriesByDateParams) (models.EntriesWithCount, error) {
+func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredLogger, p ListEntriesByDateParams) (models.EntriesWithCount, error) {
 	countChan := make(chan result[int])
 	entriesChan := make(chan result[[]models.Entry])
 
@@ -47,7 +48,11 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, p ListEntriesByDateP
 			return
 		}
 
-		r.logger.Infow("Executing query", "query", q, "args", args)
+		logger.Infow(
+			"Executing query",
+			"query", q,
+			"args", args,
+		)
 
 		var count int
 		err = r.concurrentDB.GetContext(ctx, &count, q, args...)
@@ -100,7 +105,11 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, p ListEntriesByDateP
 			return
 		}
 
-		r.logger.Infow("Executing query", "query", q, "args", args)
+		logger.Infow(
+			"Executing query",
+			"query", q,
+			"args", args,
+		)
 
 		rows, err := r.concurrentDB.QueryxContext(ctx, q, args...)
 		if err != nil {
@@ -191,7 +200,7 @@ type CreateEntryParams struct {
 	EntryType   models.EntryType
 }
 
-func (r *Repository) CreateEntry(ctx context.Context, p CreateEntryParams) (models.Entry, error) {
+func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger, p CreateEntryParams) (models.Entry, error) {
 	q, args, err := sq.
 		Insert("entry").
 		Columns("entry_type", "name", "amount", "description", "date", "category_id", "account_id").
@@ -221,7 +230,7 @@ func (r *Repository) CreateEntry(ctx context.Context, p CreateEntryParams) (mode
 
 	var category *models.Category
 	if dest.CategoryID != nil {
-		c, err := r.GetCategoryByID(ctx, GetCategoryByIDParams{
+		c, err := r.GetCategoryByID(ctx, logger, GetCategoryByIDParams{
 			ID:        *dest.CategoryID,
 			AccountID: p.AccountID,
 		})

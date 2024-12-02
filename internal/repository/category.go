@@ -6,6 +6,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/cativovo/budget-tracker/internal/models"
+	"go.uber.org/zap"
 )
 
 type category struct {
@@ -22,7 +23,7 @@ type GetCategoryByIDParams struct {
 	AccountID string
 }
 
-func (r *Repository) GetCategoryByID(ctx context.Context, p GetCategoryByIDParams) (models.Category, error) {
+func (r *Repository) GetCategoryByID(ctx context.Context, logger *zap.SugaredLogger, p GetCategoryByIDParams) (models.Category, error) {
 	q, args, err := sq.
 		Select("id", "name", "icon", "color_hex").
 		From("category").
@@ -32,7 +33,11 @@ func (r *Repository) GetCategoryByID(ctx context.Context, p GetCategoryByIDParam
 		return models.Category{}, fmt.Errorf("GetCategoryByID: query builder failed: %w", err)
 	}
 
-	r.logger.Infow("Executing query", "query", q, "args", args)
+	logger.Infow(
+		"Executing query",
+		"query", q,
+		"args", args,
+	)
 
 	var dest category
 	err = r.ConcurrentDB().GetContext(ctx, &dest, q, args...)
@@ -55,7 +60,7 @@ type CreateCategoryParams struct {
 	AccountID string
 }
 
-func (r *Repository) CreateCategory(ctx context.Context, p CreateCategoryParams) (models.Category, error) {
+func (r *Repository) CreateCategory(ctx context.Context, logger *zap.SugaredLogger, p CreateCategoryParams) (models.Category, error) {
 	q, args, err := sq.
 		Insert("category").
 		Columns("name", "icon", "color_hex", "account_id").
@@ -66,7 +71,11 @@ func (r *Repository) CreateCategory(ctx context.Context, p CreateCategoryParams)
 		return models.Category{}, fmt.Errorf("CreateCategory: query builder failed: %w", err)
 	}
 
-	r.logger.Infow("Executing query", "query", q, "args", args)
+	logger.Infow(
+		"Executing query",
+		"query", q,
+		"args", args,
+	)
 
 	var dest category
 	err = r.NonConcurrentDB().GetContext(ctx, &dest, q, args...)

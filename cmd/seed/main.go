@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -18,7 +17,7 @@ import (
 )
 
 type flags struct {
-	clean bool
+	Clean bool `json:"clean"`
 }
 
 func getFlags() flags {
@@ -26,44 +25,40 @@ func getFlags() flags {
 	flag.Parse()
 
 	return flags{
-		clean: *cleanPtr,
+		Clean: *cleanPtr,
 	}
 }
 
 func main() {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-	defer logger.Sync()
-
-	sugaredLogger := logger.Sugar()
+	logger := zap.Must(zap.NewProduction()).Sugar()
 
 	flags := getFlags()
-	sugaredLogger.Infof("flags: %+v", flags)
+	logger.Infow("Flags", "flags", flags)
 
-	cfg, err := config.LoadConfig(sugaredLogger)
+	cfg, err := config.LoadConfig(logger)
 	if err != nil {
-		sugaredLogger.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	r, err := repository.NewRepository(cfg.DBPath, sugaredLogger)
+	r, err := repository.NewRepository(cfg.DBPath)
 	if err != nil {
-		sugaredLogger.Fatal(err)
+		logger.Fatal(err)
 	}
-	if err := r.Migrate(); err != nil {
-		sugaredLogger.Fatal(err)
+
+	if err := r.Migrate(logger); err != nil {
+		logger.Fatal(err)
 	}
+
 	defer r.Close()
 
-	if flags.clean {
-		cleanDB(r.NonConcurrentDB(), sugaredLogger)
+	if flags.Clean {
+		cleanDB(r.NonConcurrentDB(), logger)
 		return
 	}
 
-	log.Println("seeding...")
+	logger.Info("seeding...")
 
-	account, err := r.CreateAccount(context.Background(), repository.CreateAccountParams{
+	account, err := r.CreateAccount(context.Background(), logger, repository.CreateAccountParams{
 		Name: gofakeit.Name(),
 	})
 
@@ -83,14 +78,14 @@ func main() {
 				return
 			}
 
-			category, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
+			category, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 				Name:      gofakeit.Noun(),
 				Icon:      strings.ToLower(gofakeit.Noun()),
 				ColorHex:  gofakeit.HexColor(),
 				AccountID: account.ID,
 			})
 			if err != nil {
-				sugaredLogger.Fatal(err)
+				logger.Fatal(err)
 			}
 			categoryIDChan <- &category.ID
 		}()
@@ -125,7 +120,7 @@ func main() {
 
 						description := gofakeit.SentenceSimple()
 
-						result, err := r.CreateEntry(context.Background(), repository.CreateEntryParams{
+						result, err := r.CreateEntry(context.Background(), logger, repository.CreateEntryParams{
 							EntryType:   entryType,
 							Name:        gofakeit.Noun(),
 							Amount:      gofakeit.IntRange(1000, 10000),
@@ -135,7 +130,7 @@ func main() {
 							AccountID:   account.ID,
 						})
 						if err != nil {
-							sugaredLogger.Fatal(err)
+							logger.Fatal(err)
 						}
 						_ = result
 					}
@@ -173,27 +168,24 @@ LOOP:
 		}
 	}
 
-	log.Println("done seeding")
 	accountID := account.ID
 	if err != nil {
-		sugaredLogger.Fatal(err)
+		logger.Fatal(err)
 	}
-	log.Println("account id:", accountID)
-	log.Printf("results: category: %d, expense: %d, income: %d", categoryCount, expenseCount, incomeCount)
+	logger.Infow("Done seeding ID", "account_id", accountID)
+	logger.Infow("Results", "category_count", categoryCount, "expense_count", expenseCount, "income_count", incomeCount)
 }
 
-func cleanDB(db *sqlx.DB, sugaredLogger *zap.SugaredLogger) {
-	log.Println("cleaning db...")
-	c, err := db.ExecContext(context.Background(), `
+func cleanDB(db *sqlx.DB, logger *zap.SugaredLogger) {
+	logger.Info("cleaning db...")
+	_, err := db.ExecContext(context.Background(), `
 		DELETE FROM entry;
 		DELETE FROM category;
 		DELETE FROM account;
 		`)
 	if err != nil {
-		sugaredLogger.Fatal(err)
+		logger.Fatal(err)
 	}
 
-	log.Println(c.RowsAffected())
-
-	log.Println("done")
+	logger.Info("done")
 }

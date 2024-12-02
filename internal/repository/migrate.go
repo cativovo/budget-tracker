@@ -11,22 +11,21 @@ import (
 var embedMigrations embed.FS
 
 type gooseLogger struct {
-	l *zap.SugaredLogger
+	base *zap.SugaredLogger
 }
 
 func (g gooseLogger) Printf(format string, v ...interface{}) {
-	g.l.Infof(format, v...)
+	g.base.Infof(format, v...)
 }
 
 func (g gooseLogger) Fatalf(format string, v ...interface{}) {
-	g.l.Fatalf(format, v...)
+	g.base.Fatalf(format, v...)
 }
 
 var _ goose.Logger = (*gooseLogger)(nil)
 
-func (r *Repository) Migrate() error {
-	logger := gooseLogger{l: r.logger}
-	goose.SetLogger(logger)
+func (r *Repository) Migrate(logger *zap.SugaredLogger) error {
+	goose.SetLogger(gooseLogger{base: logger})
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return err
 	}

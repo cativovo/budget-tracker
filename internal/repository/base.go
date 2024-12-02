@@ -4,16 +4,14 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	"go.uber.org/zap"
 )
 
 type Repository struct {
 	concurrentDB    *sqlx.DB
 	nonConcurrentDB *sqlx.DB
-	logger          *zap.SugaredLogger
 }
 
-func NewRepository(dbPath string, logger *zap.SugaredLogger) (*Repository, error) {
+func NewRepository(dbPath string) (*Repository, error) {
 	const (
 		maxOpenConns int           = 120
 		maxIdleConns int           = 15
@@ -41,7 +39,6 @@ func NewRepository(dbPath string, logger *zap.SugaredLogger) (*Repository, error
 	return &Repository{
 		concurrentDB:    concurrentDB,
 		nonConcurrentDB: nonConcurrentDB,
-		logger:          logger,
 	}, nil
 }
 
@@ -50,7 +47,7 @@ func (r *Repository) ConcurrentDB() *sqlx.DB {
 }
 
 func (r *Repository) NonConcurrentDB() *sqlx.DB {
-	return r.concurrentDB
+	return r.nonConcurrentDB
 }
 
 func (r *Repository) Close() {

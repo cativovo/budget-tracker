@@ -1,59 +1,39 @@
 package main
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"log"
-	"time"
 
 	"github.com/cativovo/budget-tracker/internal/config"
-	"github.com/cativovo/budget-tracker/internal/models"
 	"github.com/cativovo/budget-tracker/internal/repository"
+	"github.com/cativovo/budget-tracker/internal/server"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		panic(err)
-	}
-
+	logger := zap.Must(zap.NewProduction()).Sugar()
 	defer logger.Sync()
-	suggaredLogger := logger.Sugar()
 
-	cfg, err := config.LoadConfig(suggaredLogger)
+	cfg, err := config.LoadConfig(logger)
 	if err != nil {
 		panic(err)
 	}
 
-	r, err := repository.NewRepository(cfg.DBPath, suggaredLogger)
+	logger.Infow("Config details", "config", cfg)
+
+	r, err := repository.NewRepository(cfg.DBPath)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	defer r.Close()
 
-	if err := r.Migrate(); err != nil {
-		suggaredLogger.Fatal(err)
+	if err := r.Migrate(logger); err != nil {
+		logger.Fatal(err)
 	}
 
-	ey, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
-		StartDate: time.Now().AddDate(0, 0, -5).Format("2006-01-02"),
-		EndDate:   time.Now().Format("2006-01-02"),
-		AccountID: "237B59CB8AFFF758",
-		EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
-		Limit:     10,
-		Offset:    0,
-		OrderBy:   repository.Desc,
+	s := server.NewServer(server.Resource{
+		Logger:     logger,
+		Repository: r,
 	})
-	if err != nil {
-		panic(err)
-	}
 
-	b, err := json.MarshalIndent(&ey, "  ", "  ")
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(b))
+	logger.Fatal(s.Start(fmt.Sprintf(":%s", cfg.Port)))
 }

@@ -11,21 +11,23 @@ import (
 	"github.com/cativovo/budget-tracker/internal/models"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 )
 
 func TestCreateEntry(t *testing.T) {
 	h := newRepositoryHelper(t, "TestCreateEntry.db")
 	r := h.repository()
 	defer h.clean()
+	logger := zap.NewNop().Sugar()
 
-	account, err := r.CreateAccount(context.Background(), repository.CreateAccountParams{
+	account, err := r.CreateAccount(context.Background(), logger, repository.CreateAccountParams{
 		Name: "Zhou Guanyu",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	category1, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
+	category1, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Groceries",
 		Icon:      "mdi:cart",
 		ColorHex:  "#FF6347",
@@ -35,7 +37,7 @@ func TestCreateEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	category2, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
+	category2, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Utilities",
 		Icon:      "mdi:lightbulb",
 		ColorHex:  "#32CD32",
@@ -149,13 +151,13 @@ func TestCreateEntry(t *testing.T) {
 	*expected[4].Description = "Bought household essentials, including food and cleaning products."
 
 	for _, param := range params {
-		_, err := r.CreateEntry(context.Background(), param)
+		_, err := r.CreateEntry(context.Background(), logger, param)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+	entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 		StartDate: "2024-11-25",
 		EndDate:   "2024-11-30",
 		AccountID: account.ID,
@@ -176,15 +178,16 @@ func TestListEntriesByDate(t *testing.T) {
 	h := newRepositoryHelper(t, "TestListEntriesByDate.db")
 	r := h.repository()
 	defer h.clean()
+	logger := zap.NewNop().Sugar()
 
-	account, err := r.CreateAccount(context.Background(), repository.CreateAccountParams{
+	account, err := r.CreateAccount(context.Background(), logger, repository.CreateAccountParams{
 		Name: "Valterri Bottas",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	category1, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
+	category1, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Groceries",
 		Icon:      "mdi:cart",
 		ColorHex:  "#FF6347",
@@ -194,7 +197,7 @@ func TestListEntriesByDate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	category2, err := r.CreateCategory(context.Background(), repository.CreateCategoryParams{
+	category2, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Utilities",
 		Icon:      "mdi:lightbulb",
 		ColorHex:  "#32CD32",
@@ -312,14 +315,14 @@ func TestListEntriesByDate(t *testing.T) {
 	*expected[4].Description = "Bought household essentials, including food and cleaning products."
 
 	for _, param := range params {
-		_, err := r.CreateEntry(context.Background(), param)
+		_, err := r.CreateEntry(context.Background(), logger, param)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	t.Run("DESC", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -344,7 +347,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("ASC", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -369,7 +372,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("BETWEEN", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-27",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -388,7 +391,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("LIMIT", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -410,7 +413,7 @@ func TestListEntriesByDate(t *testing.T) {
 
 	t.Run("OFFSET", func(t *testing.T) {
 		offset := 2
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -431,7 +434,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("EntryTypeExpense", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -456,7 +459,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("EntryTypeIncome", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
@@ -481,7 +484,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 
 	t.Run("Invalid account ID", func(t *testing.T) {
-		entriesWithCount, err := r.ListEntriesByDate(context.Background(), repository.ListEntriesByDateParams{
+		entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: "6969",

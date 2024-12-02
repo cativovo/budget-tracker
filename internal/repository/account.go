@@ -6,6 +6,7 @@ import (
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/cativovo/budget-tracker/internal/models"
+	"go.uber.org/zap"
 )
 
 type account struct {
@@ -13,7 +14,7 @@ type account struct {
 	Name string `db:"name"`
 }
 
-func (r *Repository) GetAccountByID(ctx context.Context, id string) (models.Account, error) {
+func (r *Repository) GetAccountByID(ctx context.Context, logger *zap.SugaredLogger, id string) (models.Account, error) {
 	q, args, err := sq.
 		Select("id", "name").
 		From("account").
@@ -23,7 +24,11 @@ func (r *Repository) GetAccountByID(ctx context.Context, id string) (models.Acco
 		return models.Account{}, fmt.Errorf("GetAccountByID: query builder failed: %w", err)
 	}
 
-	r.logger.Infow("Executing query", "query", q, "args", args)
+	logger.Infow(
+		"Executing query",
+		"query", q,
+		"args", args,
+	)
 
 	var dest account
 	err = r.ConcurrentDB().GetContext(ctx, &dest, q, args...)
@@ -41,7 +46,7 @@ type CreateAccountParams struct {
 	Name string
 }
 
-func (r *Repository) CreateAccount(ctx context.Context, p CreateAccountParams) (models.Account, error) {
+func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogger, p CreateAccountParams) (models.Account, error) {
 	q, args, err := sq.
 		Insert("account").
 		Columns("name").
@@ -52,7 +57,11 @@ func (r *Repository) CreateAccount(ctx context.Context, p CreateAccountParams) (
 		return models.Account{}, fmt.Errorf("CreateAccount: query builder failed: %w", err)
 	}
 
-	r.logger.Infow("Executing query", "query", q, "args", args)
+	logger.Infow(
+		"Executing query",
+		"query", q,
+		"args", args,
+	)
 
 	var dest account
 	err = r.NonConcurrentDB().GetContext(ctx, &dest, q, args...)

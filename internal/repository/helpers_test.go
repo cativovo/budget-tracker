@@ -19,12 +19,12 @@ type repositoryHelper struct {
 func newRepositoryHelper(t *testing.T, dbPath string) *repositoryHelper {
 	t.Helper()
 
-	r, err := repository.NewRepository(dbPath, zap.NewNop().Sugar())
+	r, err := repository.NewRepository(dbPath)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := r.Migrate(); err != nil {
+	if err := r.Migrate(zap.NewNop().Sugar()); err != nil {
 		t.Fatal(err)
 	}
 
