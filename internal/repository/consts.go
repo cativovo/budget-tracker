@@ -1,6 +1,6 @@
 package repository
 
 const (
-	Desc OrderBy = iota
-	Asc
+	OrderDesc Order = iota
+	OrderAsc
 )

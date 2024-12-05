@@ -36,7 +36,7 @@ func (r *Repository) GetCategoryByID(ctx context.Context, logger *zap.SugaredLog
 	logger.Infow(
 		"Executing query",
 		"query", q,
-		"args", args,
+		"args", []any{p.ID, p.AccountID},
 	)
 
 	var dest category
@@ -74,7 +74,7 @@ func (r *Repository) CreateCategory(ctx context.Context, logger *zap.SugaredLogg
 	logger.Infow(
 		"Executing query",
 		"query", q,
-		"args", args,
+		"args", []any{p.Name, p.Icon, p.ColorHex, p.AccountID},
 	)
 
 	var dest category

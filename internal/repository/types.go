@@ -5,4 +5,4 @@ type result[T any] struct {
 	err error
 }
 
-type OrderBy int
+type Order int

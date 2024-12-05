@@ -14,7 +14,7 @@ type ListEntriesByDateParams struct {
 	EndDate   string
 	AccountID string
 	EntryType []models.EntryType
-	OrderBy   OrderBy
+	Order     Order
 	Limit     int
 	Offset    int
 }
@@ -51,7 +51,7 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 		logger.Infow(
 			"Executing query",
 			"query", q,
-			"args", args,
+			"args", []any{p.AccountID, p.EntryType, p.StartDate, p.EndDate},
 		)
 
 		var count int
@@ -91,7 +91,7 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 			Limit(uint64(p.Limit)).
 			Offset(uint64(p.Offset))
 
-		if p.OrderBy == Asc {
+		if p.Order == OrderAsc {
 			builder = builder.OrderBy("entry.date ASC")
 		} else {
 			builder = builder.OrderBy("entry.date DESC")
@@ -108,7 +108,7 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 		logger.Infow(
 			"Executing query",
 			"query", q,
-			"args", args,
+			"args", []any{p.AccountID, p.EntryType, p.StartDate, p.EndDate, p.Limit, p.Offset, p.Order},
 		)
 
 		rows, err := r.concurrentDB.QueryxContext(ctx, q, args...)
@@ -210,6 +210,12 @@ func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger,
 	if err != nil {
 		return models.Entry{}, fmt.Errorf("CreateEntry: query builder failed: %w", err)
 	}
+
+	logger.Infow(
+		"Executing query",
+		"query", q,
+		"args", []any{p.EntryType, p.Name, p.Amount, p.Description, p.Date, p.AccountID, p.CategoryID},
+	)
 
 	var dest struct {
 		Date        string           `db:"date"`

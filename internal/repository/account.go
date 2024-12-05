@@ -27,7 +27,7 @@ func (r *Repository) GetAccountByID(ctx context.Context, logger *zap.SugaredLogg
 	logger.Infow(
 		"Executing query",
 		"query", q,
-		"args", args,
+		"args", []any{id},
 	)
 
 	var dest account
@@ -60,7 +60,7 @@ func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogge
 	logger.Infow(
 		"Executing query",
 		"query", q,
-		"args", args,
+		"args", []any{p.Name},
 	)
 
 	var dest account

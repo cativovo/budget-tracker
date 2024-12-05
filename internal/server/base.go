@@ -2,7 +2,9 @@ package server
 
 import (
 	"net/http"
+	"time"
 
+	"github.com/cativovo/budget-tracker/internal/models"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/cativovo/budget-tracker/ui"
 	"github.com/labstack/echo/v4"
@@ -36,6 +38,32 @@ func NewServer(r Resource) *Server {
 	api.GET("/foo", func(c echo.Context) error {
 		t := []string{"uno", "dos", "tres"}
 		return c.JSON(http.StatusOK, t)
+	})
+
+	api.GET("/foo/:account_id", func(c echo.Context) error {
+		logger := getLogger(c)
+		accountID := c.Param("account_id")
+		logger.Infow("List entries by date", "account_id", accountID)
+
+		now := time.Now()
+		firstOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		lastOfMonth := firstOfMonth.AddDate(0, 1, -1)
+
+		entries, err := r.Repository.ListEntriesByDate(c.Request().Context(), logger, repository.ListEntriesByDateParams{
+			StartDate: firstOfMonth.Format(time.DateOnly),
+			EndDate:   lastOfMonth.Format(time.DateOnly),
+			AccountID: accountID,
+			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			Order:     repository.OrderDesc,
+			Limit:     10,
+			Offset:    0,
+		})
+		if err != nil {
+			logger.Error(err)
+			return err
+		}
+
+		return c.JSON(http.StatusOK, entries)
 	})
 
 	type payload struct {

@@ -164,7 +164,7 @@ func TestCreateEntry(t *testing.T) {
 		EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 		Limit:     10,
 		Offset:    0,
-		OrderBy:   repository.Desc,
+		Order:     repository.OrderDesc,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -329,7 +329,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -354,7 +354,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Asc,
+			Order:     repository.OrderAsc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -379,7 +379,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -398,7 +398,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 			Limit:     2,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -420,7 +420,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
 			Limit:     2,
 			Offset:    offset,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -441,7 +441,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeExpense},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -466,7 +466,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -491,7 +491,7 @@ func TestListEntriesByDate(t *testing.T) {
 			EntryType: []models.EntryType{models.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
-			OrderBy:   repository.Desc,
+			Order:     repository.OrderDesc,
 		})
 		if err != nil {
 			t.Fatal(err)
