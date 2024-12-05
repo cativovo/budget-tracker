@@ -1,8 +1,6 @@
 package server
 
 import (
-	"bytes"
-	"io"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -24,13 +22,6 @@ func RequestLogger(parentLogger *zap.SugaredLogger) echo.MiddlewareFunc {
 			logger := parentLogger.With("request_id", requestID)
 			c.Set(ctxKeyLogger, logger)
 
-			// Request
-			reqBody := []byte{}
-			if req.Body != nil {
-				reqBody, _ = io.ReadAll(c.Request().Body)
-			}
-			req.Body = io.NopCloser(bytes.NewBuffer(reqBody)) // Reset
-
 			logger.Infow(
 				"Processing Request",
 				"protocol", c.Request().Proto,
@@ -40,7 +31,6 @@ func RequestLogger(parentLogger *zap.SugaredLogger) echo.MiddlewareFunc {
 				"remote_ip", c.RealIP(),
 				"referer", c.Request().Referer(),
 				"user_agent", c.Request().UserAgent(),
-				"request_body", string(reqBody),
 				"start_time", startTime.Format(time.RFC3339),
 			)
 
