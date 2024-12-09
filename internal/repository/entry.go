@@ -5,23 +5,40 @@ import (
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/cativovo/budget-tracker/internal/models"
+	"github.com/cativovo/budget-tracker/internal/constants"
 	"go.uber.org/zap"
 )
+
+type Entry struct {
+	Date        string
+	CreatedAt   string
+	UpdatedAt   string
+	Description *string
+	Category    *Category
+	ID          string
+	Name        string
+	EntryType   constants.EntryType
+	Amount      int64
+}
+
+type EntryList struct {
+	Entries    []Entry
+	TotalCount int
+}
 
 type ListEntriesByDateParams struct {
 	StartDate string
 	EndDate   string
 	AccountID string
-	EntryType []models.EntryType
+	EntryType []constants.EntryType
 	Order     Order
 	Limit     int
 	Offset    int
 }
 
-func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredLogger, p ListEntriesByDateParams) (models.EntriesWithCount, error) {
+func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredLogger, p ListEntriesByDateParams) (EntryList, error) {
 	countChan := make(chan result[int])
-	entriesChan := make(chan result[[]models.Entry])
+	entriesChan := make(chan result[[]Entry])
 
 	eq := sq.Eq{
 		"entry.account_id": p.AccountID,
@@ -99,7 +116,7 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 
 		q, args, err := builder.ToSql()
 		if err != nil {
-			entriesChan <- result[[]models.Entry]{
+			entriesChan <- result[[]Entry]{
 				err: fmt.Errorf("ListEntriesByDate: query builder failed: %w", err),
 			}
 			return
@@ -113,40 +130,40 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 
 		rows, err := r.concurrentDB.QueryxContext(ctx, q, args...)
 		if err != nil {
-			entriesChan <- result[[]models.Entry]{
+			entriesChan <- result[[]Entry]{
 				err: fmt.Errorf("ListEntriesByDate: query failed: %w", err),
 			}
 			return
 		}
 
-		entries := make([]models.Entry, 0, p.Limit)
+		entries := make([]Entry, 0, p.Limit)
 
 		type dest struct {
-			Date             string           `db:"date"`
-			CreatedAt        string           `db:"created_at"`
-			UpdatedAt        string           `db:"updated_at"`
-			Description      *string          `db:"description"`
-			CategoryID       *string          `db:"category_id"`
-			CategoryName     *string          `db:"category_name"`
-			CategoryIcon     *string          `db:"category_icon"`
-			CategoryColorHex *string          `db:"category_color_hex"`
-			ID               string           `db:"id"`
-			Name             string           `db:"name"`
-			AccountID        string           `db:"account_id"`
-			Amount           int64            `db:"amount"`
-			EntryType        models.EntryType `db:"entry_type"`
+			Date             string              `db:"date"`
+			CreatedAt        string              `db:"created_at"`
+			UpdatedAt        string              `db:"updated_at"`
+			Description      *string             `db:"description"`
+			CategoryID       *string             `db:"category_id"`
+			CategoryName     *string             `db:"category_name"`
+			CategoryIcon     *string             `db:"category_icon"`
+			CategoryColorHex *string             `db:"category_color_hex"`
+			ID               string              `db:"id"`
+			Name             string              `db:"name"`
+			AccountID        string              `db:"account_id"`
+			Amount           int64               `db:"amount"`
+			EntryType        constants.EntryType `db:"entry_type"`
 		}
 		for rows.Next() {
 			var d dest
 			err := rows.StructScan(&d)
 			if err != nil {
-				entriesChan <- result[[]models.Entry]{
+				entriesChan <- result[[]Entry]{
 					err: fmt.Errorf("ListEntriesByDate: failed to scan row: %w", err),
 				}
 				return
 			}
 
-			entry := models.Entry{
+			entry := Entry{
 				Date:        d.Date,
 				CreatedAt:   d.CreatedAt,
 				UpdatedAt:   d.UpdatedAt,
@@ -158,7 +175,7 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 			}
 
 			if d.CategoryID != nil {
-				entry.Category = &models.Category{
+				entry.Category = &Category{
 					ID:       *d.CategoryID,
 					Name:     *d.CategoryName,
 					Icon:     *d.CategoryIcon,
@@ -169,22 +186,22 @@ func (r *Repository) ListEntriesByDate(ctx context.Context, logger *zap.SugaredL
 			entries = append(entries, entry)
 		}
 
-		entriesChan <- result[[]models.Entry]{
+		entriesChan <- result[[]Entry]{
 			ok: entries,
 		}
 	}()
 
 	countResult := <-countChan
 	if countResult.err != nil {
-		return models.EntriesWithCount{}, countResult.err
+		return EntryList{}, countResult.err
 	}
 
 	entriesResult := <-entriesChan
 	if entriesResult.err != nil {
-		return models.EntriesWithCount{}, entriesResult.err
+		return EntryList{}, entriesResult.err
 	}
 
-	return models.EntriesWithCount{
+	return EntryList{
 		Entries:    entriesResult.ok,
 		TotalCount: countResult.ok,
 	}, nil
@@ -197,10 +214,10 @@ type CreateEntryParams struct {
 	Name        string
 	AccountID   string
 	Amount      int
-	EntryType   models.EntryType
+	EntryType   constants.EntryType
 }
 
-func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger, p CreateEntryParams) (models.Entry, error) {
+func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger, p CreateEntryParams) (Entry, error) {
 	q, args, err := sq.
 		Insert("entry").
 		Columns("entry_type", "name", "amount", "description", "date", "category_id", "account_id").
@@ -208,7 +225,7 @@ func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger,
 		Suffix(`RETURNING *`).
 		ToSql()
 	if err != nil {
-		return models.Entry{}, fmt.Errorf("CreateEntry: query builder failed: %w", err)
+		return Entry{}, fmt.Errorf("CreateEntry: query builder failed: %w", err)
 	}
 
 	logger.Infow(
@@ -218,35 +235,35 @@ func (r *Repository) CreateEntry(ctx context.Context, logger *zap.SugaredLogger,
 	)
 
 	var dest struct {
-		Date        string           `db:"date"`
-		CreatedAt   string           `db:"created_at"`
-		UpdatedAt   string           `db:"updated_at"`
-		Description *string          `db:"description"`
-		CategoryID  *string          `db:"category_id"`
-		ID          string           `db:"id"`
-		Name        string           `db:"name"`
-		AccountID   string           `db:"account_id"`
-		Amount      int64            `db:"amount"`
-		EntryType   models.EntryType `db:"entry_type"`
+		Date        string              `db:"date"`
+		CreatedAt   string              `db:"created_at"`
+		UpdatedAt   string              `db:"updated_at"`
+		Description *string             `db:"description"`
+		CategoryID  *string             `db:"category_id"`
+		ID          string              `db:"id"`
+		Name        string              `db:"name"`
+		AccountID   string              `db:"account_id"`
+		Amount      int64               `db:"amount"`
+		EntryType   constants.EntryType `db:"entry_type"`
 	}
 	err = r.NonConcurrentDB().GetContext(ctx, &dest, q, args...)
 	if err != nil {
-		return models.Entry{}, fmt.Errorf("CreateEntry: query failed: %w", err)
+		return Entry{}, fmt.Errorf("CreateEntry: query failed: %w", err)
 	}
 
-	var category *models.Category
+	var category *Category
 	if dest.CategoryID != nil {
 		c, err := r.GetCategoryByID(ctx, logger, GetCategoryByIDParams{
 			ID:        *dest.CategoryID,
 			AccountID: p.AccountID,
 		})
 		if err != nil {
-			return models.Entry{}, fmt.Errorf("CreateEntry: %w", err)
+			return Entry{}, fmt.Errorf("CreateEntry: %w", err)
 		}
 		category = &c
 	}
 
-	return models.Entry{
+	return Entry{
 		Date:        dest.Date,
 		CreatedAt:   dest.CreatedAt,
 		UpdatedAt:   dest.UpdatedAt,

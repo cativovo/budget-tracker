@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/cativovo/budget-tracker/internal/models"
+	"github.com/cativovo/budget-tracker/internal/constants"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/cativovo/budget-tracker/ui"
 	"github.com/labstack/echo/v4"
@@ -53,7 +53,7 @@ func NewServer(r Resource) *Server {
 			StartDate: firstOfMonth.Format(time.DateOnly),
 			EndDate:   lastOfMonth.Format(time.DateOnly),
 			AccountID: accountID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Order:     repository.OrderDesc,
 			Limit:     10,
 			Offset:    0,

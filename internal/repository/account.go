@@ -5,23 +5,22 @@ import (
 	"fmt"
 
 	sq "github.com/Masterminds/squirrel"
-	"github.com/cativovo/budget-tracker/internal/models"
 	"go.uber.org/zap"
 )
 
-type account struct {
-	ID   string `db:"id"`
-	Name string `db:"name"`
+type Account struct {
+	ID   string
+	Name string
 }
 
-func (r *Repository) GetAccountByID(ctx context.Context, logger *zap.SugaredLogger, id string) (models.Account, error) {
+func (r *Repository) GetAccountByID(ctx context.Context, logger *zap.SugaredLogger, id string) (Account, error) {
 	q, args, err := sq.
 		Select("id", "name").
 		From("account").
 		Where(sq.Eq{"id": id}).
 		ToSql()
 	if err != nil {
-		return models.Account{}, fmt.Errorf("GetAccountByID: query builder failed: %w", err)
+		return Account{}, fmt.Errorf("GetAccountByID: query builder failed: %w", err)
 	}
 
 	logger.Infow(
@@ -30,13 +29,16 @@ func (r *Repository) GetAccountByID(ctx context.Context, logger *zap.SugaredLogg
 		"args", []any{id},
 	)
 
-	var dest account
+	var dest struct {
+		ID   string `db:"id"`
+		Name string `db:"name"`
+	}
 	err = r.ConcurrentDB().GetContext(ctx, &dest, q, args...)
 	if err != nil {
-		return models.Account{}, fmt.Errorf("GetAccountByID: query failed: %w", err)
+		return Account{}, fmt.Errorf("GetAccountByID: query failed: %w", err)
 	}
 
-	return models.Account{
+	return Account{
 		ID:   dest.ID,
 		Name: dest.Name,
 	}, nil
@@ -46,7 +48,7 @@ type CreateAccountParams struct {
 	Name string
 }
 
-func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogger, p CreateAccountParams) (models.Account, error) {
+func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogger, p CreateAccountParams) (Account, error) {
 	q, args, err := sq.
 		Insert("account").
 		Columns("name").
@@ -54,7 +56,7 @@ func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogge
 		Suffix(`RETURNING "id", "name"`).
 		ToSql()
 	if err != nil {
-		return models.Account{}, fmt.Errorf("CreateAccount: query builder failed: %w", err)
+		return Account{}, fmt.Errorf("CreateAccount: query builder failed: %w", err)
 	}
 
 	logger.Infow(
@@ -63,13 +65,16 @@ func (r *Repository) CreateAccount(ctx context.Context, logger *zap.SugaredLogge
 		"args", []any{p.Name},
 	)
 
-	var dest account
+	var dest struct {
+		ID   string `db:"id"`
+		Name string `db:"name"`
+	}
 	err = r.NonConcurrentDB().GetContext(ctx, &dest, q, args...)
 	if err != nil {
-		return models.Account{}, fmt.Errorf("CreateAccount: query failed: %w", err)
+		return Account{}, fmt.Errorf("CreateAccount: query failed: %w", err)
 	}
 
-	return models.Account{
+	return Account{
 		ID:   dest.ID,
 		Name: dest.Name,
 	}, nil

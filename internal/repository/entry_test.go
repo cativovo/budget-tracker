@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cativovo/budget-tracker/internal/models"
+	"github.com/cativovo/budget-tracker/internal/constants"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
@@ -101,7 +101,7 @@ func TestCreateEntry(t *testing.T) {
 	*params[3].Description = "Monthly payment for internet subscription, including taxes."
 	*params[4].Description = "Bought household essentials, including food and cleaning products."
 
-	expected := []models.Entry{
+	expected := []repository.Entry{
 		{
 			Date:        "2024-11-30",
 			Category:    &category1,
@@ -161,7 +161,7 @@ func TestCreateEntry(t *testing.T) {
 		StartDate: "2024-11-25",
 		EndDate:   "2024-11-30",
 		AccountID: account.ID,
-		EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+		EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 		Limit:     10,
 		Offset:    0,
 		Order:     repository.OrderDesc,
@@ -265,7 +265,7 @@ func TestListEntriesByDate(t *testing.T) {
 		params[i], params[j] = params[j], params[i]
 	})
 
-	expected := []models.Entry{
+	expected := []repository.Entry{
 		{
 			Date:        "2024-11-30",
 			Category:    &category1,
@@ -326,7 +326,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -335,10 +335,10 @@ func TestListEntriesByDate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		descSortedExpected := make([]models.Entry, len(expected))
+		descSortedExpected := make([]repository.Entry, len(expected))
 		copy(descSortedExpected, expected)
 
-		slices.SortFunc(descSortedExpected, func(a, b models.Entry) int {
+		slices.SortFunc(descSortedExpected, func(a, b repository.Entry) int {
 			return strings.Compare(b.Date, a.Date)
 		})
 
@@ -351,7 +351,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderAsc,
@@ -360,10 +360,10 @@ func TestListEntriesByDate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		ascSortedExpected := make([]models.Entry, len(expected))
+		ascSortedExpected := make([]repository.Entry, len(expected))
 		copy(ascSortedExpected, expected)
 
-		slices.SortFunc(ascSortedExpected, func(a, b models.Entry) int {
+		slices.SortFunc(ascSortedExpected, func(a, b repository.Entry) int {
 			return strings.Compare(a.Date, b.Date)
 		})
 
@@ -376,7 +376,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-27",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -395,7 +395,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Limit:     2,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -417,7 +417,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome},
 			Limit:     2,
 			Offset:    offset,
 			Order:     repository.OrderDesc,
@@ -438,7 +438,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeExpense},
+			EntryType: []constants.EntryType{constants.EntryTypeExpense},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -447,9 +447,9 @@ func TestListEntriesByDate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var filteredExpected []models.Entry
+		var filteredExpected []repository.Entry
 		for _, v := range expected {
-			if v.EntryType == models.EntryTypeExpense {
+			if v.EntryType == constants.EntryTypeExpense {
 				filteredExpected = append(filteredExpected, v)
 			}
 		}
@@ -463,7 +463,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: account.ID,
-			EntryType: []models.EntryType{models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -472,9 +472,9 @@ func TestListEntriesByDate(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		var filteredExpected []models.Entry
+		var filteredExpected []repository.Entry
 		for _, v := range expected {
-			if v.EntryType == models.EntryTypeIncome {
+			if v.EntryType == constants.EntryTypeIncome {
 				filteredExpected = append(filteredExpected, v)
 			}
 		}
@@ -488,7 +488,7 @@ func TestListEntriesByDate(t *testing.T) {
 			StartDate: "2024-11-25",
 			EndDate:   "2024-11-30",
 			AccountID: "6969",
-			EntryType: []models.EntryType{models.EntryTypeIncome},
+			EntryType: []constants.EntryType{constants.EntryTypeIncome},
 			Limit:     10,
 			Offset:    0,
 			Order:     repository.OrderDesc,
@@ -502,7 +502,7 @@ func TestListEntriesByDate(t *testing.T) {
 	})
 }
 
-func assertEntries(t *testing.T, want, got []models.Entry) {
+func assertEntries(t *testing.T, want, got []repository.Entry) {
 	t.Helper()
 
 	for i, entry := range got {
