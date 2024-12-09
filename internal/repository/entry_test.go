@@ -11,21 +11,17 @@ import (
 	"github.com/cativovo/budget-tracker/internal/constants"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap"
 )
 
 func TestCreateEntry(t *testing.T) {
 	h := newRepositoryHelper(t, "TestCreateEntry.db")
 	r := h.repository()
 	defer h.clean()
-	logger := zap.NewNop().Sugar()
 
 	account, err := r.CreateAccount(context.Background(), logger, repository.CreateAccountParams{
 		Name: "Zhou Guanyu",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	category1, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Groceries",
@@ -33,9 +29,7 @@ func TestCreateEntry(t *testing.T) {
 		ColorHex:  "#FF6347",
 		AccountID: account.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	category2, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Utilities",
@@ -43,9 +37,7 @@ func TestCreateEntry(t *testing.T) {
 		ColorHex:  "#32CD32",
 		AccountID: account.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	params := []repository.CreateEntryParams{
 		{
@@ -152,9 +144,7 @@ func TestCreateEntry(t *testing.T) {
 
 	for _, param := range params {
 		_, err := r.CreateEntry(context.Background(), logger, param)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 	}
 
 	entriesWithCount, err := r.ListEntriesByDate(context.Background(), logger, repository.ListEntriesByDateParams{
@@ -166,9 +156,7 @@ func TestCreateEntry(t *testing.T) {
 		Offset:    0,
 		Order:     repository.OrderDesc,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	assert.Equal(t, len(expected), entriesWithCount.TotalCount)
 	assertEntries(t, expected, entriesWithCount.Entries)
@@ -178,14 +166,11 @@ func TestListEntriesByDate(t *testing.T) {
 	h := newRepositoryHelper(t, "TestListEntriesByDate.db")
 	r := h.repository()
 	defer h.clean()
-	logger := zap.NewNop().Sugar()
 
 	account, err := r.CreateAccount(context.Background(), logger, repository.CreateAccountParams{
 		Name: "Valterri Bottas",
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	category1, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Groceries",
@@ -193,9 +178,7 @@ func TestListEntriesByDate(t *testing.T) {
 		ColorHex:  "#FF6347",
 		AccountID: account.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	category2, err := r.CreateCategory(context.Background(), logger, repository.CreateCategoryParams{
 		Name:      "Utilities",
@@ -203,9 +186,7 @@ func TestListEntriesByDate(t *testing.T) {
 		ColorHex:  "#32CD32",
 		AccountID: account.ID,
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.Nil(t, err)
 
 	params := []repository.CreateEntryParams{
 		{
@@ -316,9 +297,7 @@ func TestListEntriesByDate(t *testing.T) {
 
 	for _, param := range params {
 		_, err := r.CreateEntry(context.Background(), logger, param)
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 	}
 
 	t.Run("DESC", func(t *testing.T) {
@@ -331,9 +310,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		descSortedExpected := make([]repository.Entry, len(expected))
 		copy(descSortedExpected, expected)
@@ -356,9 +333,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderAsc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		ascSortedExpected := make([]repository.Entry, len(expected))
 		copy(ascSortedExpected, expected)
@@ -381,9 +356,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		expectedCount := 3
 		assert.Equal(t, expectedCount, entriesWithCount.TotalCount)
@@ -400,9 +373,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		assert.Equal(t, len(expected), entriesWithCount.TotalCount)
 
@@ -422,9 +393,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    offset,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		assert.Equal(t, len(expected), entriesWithCount.TotalCount)
 
@@ -443,9 +412,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		var filteredExpected []repository.Entry
 		for _, v := range expected {
@@ -468,9 +435,7 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.Nil(t, err)
 
 		var filteredExpected []repository.Entry
 		for _, v := range expected {
@@ -493,10 +458,8 @@ func TestListEntriesByDate(t *testing.T) {
 			Offset:    0,
 			Order:     repository.OrderDesc,
 		})
-		if err != nil {
-			t.Fatal(err)
-		}
 
+		assert.Nil(t, err)
 		assert.Equal(t, 0, entriesWithCount.TotalCount)
 		assert.Empty(t, entriesWithCount.Entries)
 	})

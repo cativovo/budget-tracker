@@ -26,7 +26,7 @@ func newRepositoryHelper(t *testing.T, dbPath string) *repositoryHelper {
 		t.Fatal(err)
 	}
 
-	if err := r.Migrate(zap.NewNop().Sugar()); err != nil {
+	if err := r.Migrate(logger); err != nil {
 		t.Fatal(err)
 	}
 
