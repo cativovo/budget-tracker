@@ -16,6 +16,8 @@ type repositoryHelper struct {
 	dbPath string
 }
 
+var logger = zap.NewNop().Sugar()
+
 func newRepositoryHelper(t *testing.T, dbPath string) *repositoryHelper {
 	t.Helper()
 
