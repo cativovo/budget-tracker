@@ -10,7 +10,7 @@ import (
 
 	"github.com/brianvoe/gofakeit/v7"
 	"github.com/cativovo/budget-tracker/internal/config"
-	"github.com/cativovo/budget-tracker/internal/models"
+	"github.com/cativovo/budget-tracker/internal/constants"
 	"github.com/cativovo/budget-tracker/internal/repository"
 	"github.com/jmoiron/sqlx"
 	"go.uber.org/zap"
@@ -109,10 +109,10 @@ func main() {
 						endDate := time.Date(2024, time.December, 31, 0, 0, 0, 0, time.UTC)
 						fakeDate := gofakeit.DateRange(startDate, endDate)
 
-						entryTypes := []models.EntryType{models.EntryTypeExpense, models.EntryTypeIncome}
+						entryTypes := []constants.EntryType{constants.EntryTypeExpense, constants.EntryTypeIncome}
 						entryType := entryTypes[rand.IntN(len(entryTypes))]
 
-						if entryType == models.EntryTypeExpense {
+						if entryType == constants.EntryTypeExpense {
 							expenseCountChan <- 1
 						} else {
 							incomeCountChan <- 1

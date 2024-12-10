@@ -4,7 +4,7 @@ import { onMounted, ref } from 'vue'
 const list = ref<string[]>([])
 
 onMounted(async () => {
-  const res = await fetch('/api/foo')
+  const res = await fetch('/api/entries')
   const j: string[] = await res.json()
   list.value = j
 })
