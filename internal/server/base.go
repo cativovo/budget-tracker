@@ -32,11 +32,11 @@ const (
 func NewServer(r Resource) *Server {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
-	router.Use(addRequestIDHeader)
+	router.Use(setResponseRequestID)
 	router.Use(middleware.RealIP)
 	router.Use(requestLogger(r.Logger))
+	router.Use(recoverer)
 	router.Use(middleware.Compress(5, "text/html", "text/css", "text/javascript"))
-	router.Use(middleware.Recoverer)
 
 	router.Handle("/*", spaHandler())
 
