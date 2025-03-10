@@ -5,13 +5,12 @@ import (
 	"os"
 	"path"
 	"strings"
-
-	"github.com/cativovo/budget-tracker/ui"
 )
 
 func spaHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		f, err := ui.DistDirFS.Open(strings.TrimPrefix(path.Clean(r.URL.Path), "/"))
+		dist := os.DirFS(path.Join("ui", "dist"))
+		f, err := dist.Open(strings.TrimPrefix(path.Clean(r.URL.Path), "/"))
 		if err == nil {
 			defer f.Close()
 		}
@@ -20,6 +19,6 @@ func spaHandler() http.HandlerFunc {
 			r.URL.Path = "/"
 		}
 
-		http.FileServer(http.FS(ui.DistDirFS)).ServeHTTP(w, r)
+		http.FileServer(http.FS(dist)).ServeHTTP(w, r)
 	}
 }
