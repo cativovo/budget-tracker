@@ -2,8 +2,9 @@ package user
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
+	"github.com/cativovo/budget-tracker/internal"
 	"github.com/cativovo/budget-tracker/internal/validator"
 )
 
@@ -19,6 +20,13 @@ func NewUserService(ur UserRepository, v *validator.Validator) *UserService {
 	}
 }
 
+func (us *UserService) FindUserByID(ctx context.Context, id string) (User, error) {
+	if id == "" {
+		return User{}, internal.NewError(internal.ErrorCodeInvalid, "ID is required")
+	}
+	return us.ur.FindUserByID(ctx, id)
+}
+
 type CreateUserReq struct {
 	Name  string `json:"name" validate:"required"`
 	ID    string `json:"id"`
@@ -27,14 +35,20 @@ type CreateUserReq struct {
 
 func (us *UserService) CreateUser(ctx context.Context, u CreateUserReq) (User, error) {
 	if err := us.v.Struct(u); err != nil {
-		return User{}, err
+		return User{}, internal.NewError(internal.ErrorCodeInvalid, err.Error())
 	}
-	return us.ur.CreateUser(ctx, u)
+
+	result, err := us.ur.CreateUser(ctx, u)
+	if err != nil {
+		return User{}, fmt.Errorf("user.UserService: %w", err)
+	}
+
+	return result, nil
 }
 
 func (us *UserService) DeleteUser(ctx context.Context, id string) error {
 	if id == "" {
-		return errors.New("id is required")
+		return internal.NewError(internal.ErrorCodeInvalid, "ID is required")
 	}
 	return us.ur.DeleteUser(ctx, id)
 }
