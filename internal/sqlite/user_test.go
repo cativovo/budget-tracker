@@ -18,12 +18,14 @@ func TestCreateUser(t *testing.T) {
 	ur := sqlite.NewUserRepository(dh.db)
 	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
-	tests := map[string]struct {
+	tests := []struct {
+		name  string
 		input user.CreateUserReq
 		want  user.User
 		err   error
 	}{
-		"create user": {
+		{
+			name: "create user",
 			input: user.CreateUserReq{
 				Name:  "Alex Albon",
 				ID:    "1",
@@ -35,7 +37,8 @@ func TestCreateUser(t *testing.T) {
 				Email: "alexalbon@williams.com",
 			},
 		},
-		"duplicate user": {
+		{
+			name: "duplicate user",
 			input: user.CreateUserReq{
 				Name:  "Alex Albon",
 				ID:    "1",
@@ -45,8 +48,8 @@ func TestCreateUser(t *testing.T) {
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
 			got, err := ur.CreateUser(ctxWithLogger, test.input)
 
 			if test.err != nil {
