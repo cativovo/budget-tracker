@@ -6,17 +6,17 @@
  	id TEXT NOT NULL PRIMARY KEY,
  	name TEXT NOT NULL,
  	email TEXT NOT NULL UNIQUE
- ) STRICT;
+ );
 
 CREATE TABLE category (
     id TEXT NOT NULL PRIMARY KEY DEFAULT (hex(randomblob(8))),
 	name TEXT NOT NULL,
 	color TEXT NOT NULL,
 	icon TEXT NOT NULL,
-	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
-) STRICT;
+);
 
 CREATE INDEX idx_category_user_id ON category(user_id);
 
@@ -27,7 +27,7 @@ CREATE TABLE expense_group (
 	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
-) STRICT;
+);
 
 CREATE INDEX idx_expense_group_user_id ON expense_group(user_id);
 
@@ -42,7 +42,7 @@ CREATE TABLE expense (
 	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
 	category_id TEXT NOT NULL REFERENCES category(id) ON DELETE CASCADE,
 	expense_group_id TEXT REFERENCES expense_group(id)
-) STRICT;
+);
 
 CREATE INDEX idx_expense_date ON expense(date);
 CREATE INDEX idx_expense_user_id ON expense(user_id);

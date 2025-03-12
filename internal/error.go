@@ -28,7 +28,7 @@ func NewError(e ErrorCode, m string) *Error {
 
 func NewErrorf(e ErrorCode, format string, args ...any) *Error {
 	return &Error{
-		code:    ErrorCodeInvalid,
+		code:    e,
 		message: fmt.Sprintf(format, args...),
 	}
 }

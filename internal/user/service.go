@@ -35,7 +35,7 @@ type CreateUserReq struct {
 
 func (us *UserService) CreateUser(ctx context.Context, u CreateUserReq) (User, error) {
 	if err := us.v.Struct(u); err != nil {
-		return User{}, internal.NewError(internal.ErrorCodeInvalid, err.Error())
+		return User{}, err
 	}
 
 	result, err := us.ur.CreateUser(ctx, u)

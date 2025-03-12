@@ -37,6 +37,7 @@ func (cs *CategoryService) CreateCategory(ctx context.Context, c CreateCategoryR
 }
 
 type UpdateCategoryReq struct {
+	ID    string `json:"id" validate:"required"`
 	Name  string `json:"name"`
 	Color string `json:"color" validate:"hexcolor"`
 	Icon  string `json:"icon"`
@@ -46,5 +47,10 @@ func (cs *CategoryService) UpdateCategory(ctx context.Context, u UpdateCategoryR
 	if err := cs.v.Struct(u); err != nil {
 		return Category{}, err
 	}
+
+	if u.Name == "" && u.Icon == "" && u.Color == "" {
+		return Category{}, internal.NewError(internal.ErrorCodeInvalid, "Must update at least one field")
+	}
+
 	return cs.cr.UpdateCategory(ctx, u)
 }
