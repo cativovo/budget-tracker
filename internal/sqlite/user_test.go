@@ -74,23 +74,7 @@ func TestFindUserByID(t *testing.T) {
 	ur := sqlite.NewUserRepository(dh.db)
 	ctxWithLogger := internal.NewCtxWithLogger(context.Background(), logger)
 
-	cuq := []user.CreateUserReq{
-		{
-			Name:  "Alex Albon",
-			ID:    "1",
-			Email: "alexalbon@williams.com",
-		},
-		{
-			Name:  "Carlos Sainz Jr.",
-			ID:    "2",
-			Email: "carlossainzjr@williams.com",
-		},
-	}
-
-	for _, v := range cuq {
-		_, err := ur.CreateUser(ctxWithLogger, v)
-		assert.Nil(t, err)
-	}
+	createUsers(t, ctxWithLogger, dh.db)
 
 	tests := map[string]struct {
 		input string
@@ -149,23 +133,7 @@ func TestDeleteUser(t *testing.T) {
 	ur := sqlite.NewUserRepository(dh.db)
 	ctxWithLogger := internal.NewCtxWithLogger(context.Background(), logger)
 
-	cuq := []user.CreateUserReq{
-		{
-			Name:  "Alex Albon",
-			ID:    "1",
-			Email: "alexalbon@williams.com",
-		},
-		{
-			Name:  "Carlos Sainz Jr.",
-			ID:    "2",
-			Email: "carlossainzjr@williams.com",
-		},
-	}
-
-	for _, v := range cuq {
-		_, err := ur.CreateUser(ctxWithLogger, v)
-		assert.Nil(t, err)
-	}
+	createUsers(t, ctxWithLogger, dh.db)
 
 	tests := map[string]struct {
 		input string

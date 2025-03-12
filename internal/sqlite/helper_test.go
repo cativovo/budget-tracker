@@ -1,10 +1,12 @@
 package sqlite_test
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal/sqlite"
+	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -39,4 +41,28 @@ func (d *dbHelper) clean() {
 
 	err := os.RemoveAll(d.dbPath)
 	assert.Nil(d.t, err)
+}
+
+func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) {
+	t.Helper()
+
+	ur := sqlite.NewUserRepository(db)
+
+	cuq := []user.CreateUserReq{
+		{
+			Name:  "Alex Albon",
+			ID:    "1",
+			Email: "alexalbon@williams.com",
+		},
+		{
+			Name:  "Carlos Sainz Jr.",
+			ID:    "2",
+			Email: "carlossainzjr@williams.com",
+		},
+	}
+
+	for _, v := range cuq {
+		_, err := ur.CreateUser(ctx, v)
+		assert.Nil(t, err)
+	}
 }
