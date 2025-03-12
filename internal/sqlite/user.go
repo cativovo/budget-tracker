@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/internal/logger"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/huandu/go-sqlbuilder"
 	"modernc.org/sqlite"
@@ -26,7 +27,7 @@ func NewUserRepository(db *DB) UserRepository {
 }
 
 func (ur *UserRepository) FindUserByID(ctx context.Context, id string) (user.User, error) {
-	logger := internal.LoggerFromCtx(ctx)
+	logger := logger.LoggerFromCtx(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -65,7 +66,7 @@ func (ur *UserRepository) FindUserByID(ctx context.Context, id string) (user.Use
 }
 
 func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) (user.User, error) {
-	logger := internal.LoggerFromCtx(ctx)
+	logger := logger.LoggerFromCtx(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("user")
@@ -105,7 +106,7 @@ func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) 
 }
 
 func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
-	logger := internal.LoggerFromCtx(ctx)
+	logger := logger.LoggerFromCtx(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("user")

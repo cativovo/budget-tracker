@@ -17,7 +17,7 @@ type dbHelper struct {
 	t      *testing.T
 }
 
-var logger = zap.NewNop().Sugar()
+var zapLogger = zap.NewNop().Sugar()
 
 func newDBHelper(t *testing.T, dbPath string) *dbHelper {
 	t.Helper()
@@ -25,7 +25,7 @@ func newDBHelper(t *testing.T, dbPath string) *dbHelper {
 	db, err := sqlite.NewDB(dbPath)
 	assert.Nil(t, err)
 
-	err = db.Migrate(logger)
+	err = db.Migrate(zapLogger)
 	assert.Nil(t, err)
 
 	return &dbHelper{
@@ -43,7 +43,7 @@ func (d *dbHelper) clean() {
 	assert.Nil(d.t, err)
 }
 
-func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) {
+func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) []user.User {
 	t.Helper()
 
 	ur := sqlite.NewUserRepository(db)
@@ -61,8 +61,14 @@ func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) {
 		},
 	}
 
+	users := make([]user.User, 0, len(cuq))
+
 	for _, v := range cuq {
-		_, err := ur.CreateUser(ctx, v)
+		user, err := ur.CreateUser(ctx, v)
 		assert.Nil(t, err)
+
+		users = append(users, user)
 	}
+
+	return users
 }

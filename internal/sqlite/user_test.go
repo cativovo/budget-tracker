@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/internal/logger"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +16,7 @@ func TestCreateUser(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := internal.NewCtxWithLogger(context.Background(), logger)
+	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
 	tests := map[string]struct {
 		input user.CreateUserReq
@@ -72,7 +73,7 @@ func TestFindUserByID(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := internal.NewCtxWithLogger(context.Background(), logger)
+	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
 	createUsers(t, ctxWithLogger, dh.db)
 
@@ -131,7 +132,7 @@ func TestDeleteUser(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := internal.NewCtxWithLogger(context.Background(), logger)
+	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
 	createUsers(t, ctxWithLogger, dh.db)
 
