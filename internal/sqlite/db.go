@@ -10,8 +10,8 @@ import (
 )
 
 type DB struct {
-	reader *sqlx.DB
-	writer *sqlx.DB
+	reader       *sqlx.DB
+	readerWriter *sqlx.DB
 }
 
 func NewDB(dbPath string) (*DB, error) {
@@ -30,24 +30,24 @@ func NewDB(dbPath string) (*DB, error) {
 	reader.SetMaxIdleConns(maxIdleConns)
 	reader.SetConnMaxIdleTime(maxIdleTime)
 
-	writer, err := connectDB(dbPath)
+	readerWriter, err := connectDB(dbPath)
 	if err != nil {
 		return nil, err
 	}
 
-	writer.SetMaxOpenConns(1)
-	writer.SetMaxIdleConns(1)
-	writer.SetConnMaxIdleTime(maxIdleTime)
+	readerWriter.SetMaxOpenConns(1)
+	readerWriter.SetMaxIdleConns(1)
+	readerWriter.SetConnMaxIdleTime(maxIdleTime)
 
 	return &DB{
-		reader: reader,
-		writer: writer,
+		reader:       reader,
+		readerWriter: readerWriter,
 	}, nil
 }
 
 func (r *DB) Close() {
 	r.reader.Close()
-	r.writer.Close()
+	r.readerWriter.Close()
 }
 
 //go:embed all:migrations
@@ -60,7 +60,7 @@ func (r *DB) Migrate(logger *zap.SugaredLogger) error {
 	}
 
 	goose.SetBaseFS(embedMigrations)
-	if err := goose.Up(r.writer.DB, "migrations"); err != nil {
+	if err := goose.Up(r.readerWriter.DB, "migrations"); err != nil {
 		return err
 	}
 
