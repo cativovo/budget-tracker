@@ -3,13 +3,13 @@
 
 -- use the id, name, and email from the login provider
  CREATE TABLE user (
- 	id TEXT PRIMARY KEY NOT NULL,
+ 	id TEXT NOT NULL PRIMARY KEY,
  	name TEXT NOT NULL,
- 	email TEXT NOT NULL
+ 	email TEXT NOT NULL UNIQUE
  ) STRICT;
 
 CREATE TABLE category (
-    id TEXT PRIMARY KEY NOT NULL DEFAULT (hex(randomblob(8))),
+    id TEXT NOT NULL PRIMARY KEY DEFAULT (hex(randomblob(8))),
 	name TEXT NOT NULL,
 	color TEXT NOT NULL,
 	icon TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE category (
 CREATE INDEX idx_category_user_id ON category(user_id);
 
 CREATE TABLE expense_group (
-    id TEXT PRIMARY KEY NOT NULL DEFAULT (hex(randomblob(8))),
+    id TEXT NOT NULL PRIMARY KEY DEFAULT (hex(randomblob(8))),
 	name TEXT NOT NULL,
 	note TEXT NOT NULL,
 	created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -32,7 +32,7 @@ CREATE TABLE expense_group (
 CREATE INDEX idx_expense_group_user_id ON expense_group(user_id);
 
 CREATE TABLE expense (
-    id TEXT PRIMARY KEY NOT NULL DEFAULT (hex(randomblob(8))),
+    id TEXT NOT NULL PRIMARY KEY DEFAULT (hex(randomblob(8))),
 	name TEXT NOT NULL,
 	amount INTEGER NOT NULL,
 	note TEXT NOT NULL,
