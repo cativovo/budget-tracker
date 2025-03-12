@@ -1,8 +1,9 @@
-package internal
+package expense
 
 import (
-	"context"
 	"time"
+
+	"github.com/cativovo/budget-tracker/internal/category"
 )
 
 type Expense struct {
@@ -11,7 +12,7 @@ type Expense struct {
 	Amount    int64
 	Date      time.Time
 	Note      string
-	Category  Category
+	Category  category.Category
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }
@@ -31,10 +32,4 @@ type ExpenseSummary struct {
 	Amount  int64
 	Date    time.Time
 	IsGroup bool
-}
-
-type ExpenseRepository interface {
-	ListExpenseSummaries(ctx context.Context, lo ListOptions) ([]ExpenseSummary, error)
-	CreateExpense(ctx context.Context, e Expense) (Expense, error)
-	UpdateExpense(ctx context.Context, e Expense) (Expense, error)
 }
