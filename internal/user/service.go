@@ -28,8 +28,8 @@ func (us *UserService) FindUserByID(ctx context.Context, id string) (User, error
 }
 
 type CreateUserReq struct {
-	Name  string `json:"name" validate:"required"`
 	ID    string `json:"id"`
+	Name  string `json:"name" validate:"required"`
 	Email string `json:"email" validate:"required,email"`
 }
 

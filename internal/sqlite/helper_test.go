@@ -1,12 +1,12 @@
 package sqlite_test
 
 import (
-	"context"
 	"os"
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal/sqlite"
 	"github.com/cativovo/budget-tracker/internal/user"
+	"github.com/huandu/go-sqlbuilder"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
 )
@@ -43,10 +43,8 @@ func (d *dbHelper) clean() {
 	assert.Nil(d.t, err)
 }
 
-func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) []user.User {
+func createUsers(t *testing.T, db *sqlite.DB) []user.User {
 	t.Helper()
-
-	ur := sqlite.NewUserRepository(db)
 
 	cuq := []user.CreateUserReq{
 		{
@@ -61,14 +59,30 @@ func createUsers(t *testing.T, ctx context.Context, db *sqlite.DB) []user.User {
 		},
 	}
 
+	ib := sqlbuilder.SQLite.NewInsertBuilder()
+	ib.InsertInto("user")
+	ib.Cols(
+		"id",
+		"name",
+		"email",
+	)
+
 	users := make([]user.User, 0, len(cuq))
 
 	for _, v := range cuq {
-		user, err := ur.CreateUser(ctx, v)
-		assert.Nil(t, err)
-
-		users = append(users, user)
+		ib.Values(
+			v.ID,
+			v.Name,
+			v.Email,
+		)
+		users = append(users, user.User(v))
 	}
+
+	q, args := ib.Build()
+
+	db.ReaderWriter().MustExec(q, args...)
 
 	return users
 }
+
+// func createCategorys(t *testing.T, ctx )

@@ -45,6 +45,10 @@ func NewDB(dbPath string) (*DB, error) {
 	}, nil
 }
 
+func (r *DB) ReaderWriter() *sqlx.DB {
+	return r.readerWriter
+}
+
 func (r *DB) Close() {
 	r.reader.Close()
 	r.readerWriter.Close()

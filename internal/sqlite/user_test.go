@@ -78,7 +78,7 @@ func TestFindUserByID(t *testing.T) {
 	ur := sqlite.NewUserRepository(dh.db)
 	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
-	createUsers(t, ctxWithLogger, dh.db)
+	createUsers(t, dh.db)
 
 	tests := map[string]struct {
 		input string
@@ -137,7 +137,7 @@ func TestDeleteUser(t *testing.T) {
 	ur := sqlite.NewUserRepository(dh.db)
 	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
-	createUsers(t, ctxWithLogger, dh.db)
+	createUsers(t, dh.db)
 
 	tests := map[string]struct {
 		input string
