@@ -98,11 +98,7 @@ func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) 
 		return user.User{}, fmt.Errorf("sqlite.UserRepository: %w", err)
 	}
 
-	return user.User{
-		ID:    u.ID,
-		Name:  u.Name,
-		Email: u.Email,
-	}, nil
+	return user.User(u), nil
 }
 
 func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
