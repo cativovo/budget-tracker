@@ -21,7 +21,7 @@ func TestCreateFindCategory(t *testing.T) {
 	cr := sqlite.NewCategoryRepository(dh.db)
 	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
-	users := createUsers(t, ctxWithLogger, dh.db)
+	users := createUsers(t, dh.db)
 
 	tests := []struct {
 		name  string
@@ -119,14 +119,11 @@ func TestCreateFindCategory(t *testing.T) {
 		_, err := cr.FindCategoryByID(ctxWithUser, "123")
 		assert.NotNil(t, err)
 
-		wantCode := internal.ErrorCodeNotFound
-		wantMessage := "Category not found"
-
 		gotCode := internal.GetErrorCode(err)
-		gotMessage := internal.GetErrorMessage(err)
+		assert.Equal(t, internal.ErrorCodeNotFound, gotCode)
 
-		assert.Equal(t, wantCode, gotCode)
-		assert.Equal(t, wantMessage, gotMessage)
+		gotMessage := internal.GetErrorMessage(err)
+		assert.Equal(t, "Category not found", gotMessage)
 	})
 }
 
@@ -137,7 +134,7 @@ func TestUpdateCategory(t *testing.T) {
 	cr := sqlite.NewCategoryRepository(dh.db)
 	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
 
-	users := createUsers(t, ctxWithLogger, dh.db)
+	users := createUsers(t, dh.db)
 
 	ccr := []struct {
 		user  user.User
@@ -342,6 +339,71 @@ func TestUpdateCategory(t *testing.T) {
 			found, findErr := cr.FindCategoryByID(ctxWithUser, test.input.ID)
 			assert.Nil(t, findErr)
 			assert.Equal(t, updated, found)
+		})
+	}
+}
+
+func TestDeleteCategory(t *testing.T) {
+	dh := newDBHelper(t, "test_delete_category.db")
+	defer dh.clean()
+
+	cr := sqlite.NewCategoryRepository(dh.db)
+	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
+
+	users := createUsers(t, dh.db)
+
+	type userWithCategory struct {
+		user       user.User
+		categories []category.Category
+	}
+
+	uwc := make([]userWithCategory, 0)
+
+	for _, u := range users {
+		uwc = append(uwc, userWithCategory{
+			user:       u,
+			categories: createCategories(t, dh.db, u),
+		})
+	}
+
+	tests := []struct {
+		name        string
+		user        user.User
+		deleter     user.User
+		categoryID  string
+		shouldFound bool
+	}{
+		{
+			name:       fmt.Sprintf("%s deletes the category", uwc[0].user.Name),
+			user:       uwc[0].user,
+			deleter:    uwc[0].user,
+			categoryID: uwc[0].categories[0].ID,
+		},
+		{
+			name:        fmt.Sprintf("%s tries to delete the category of %s", uwc[1].user.Name, uwc[0].user.Name),
+			user:        uwc[0].user,
+			deleter:     uwc[1].user,
+			categoryID:  uwc[0].categories[1].ID,
+			shouldFound: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			deleteErr := cr.DeleteCategory(user.NewCtxWithUser(ctxWithLogger, test.deleter), test.categoryID)
+			assert.Nil(t, deleteErr)
+
+			_, findErr := cr.FindCategoryByID(user.NewCtxWithUser(ctxWithLogger, test.user), test.categoryID)
+			if test.shouldFound {
+				assert.Nil(t, findErr)
+				return
+			}
+
+			gotCode := internal.GetErrorCode(findErr)
+			assert.Equal(t, internal.ErrorCodeNotFound, gotCode)
+
+			gotMessage := internal.GetErrorMessage(findErr)
+			assert.Equal(t, "Category not found", gotMessage)
 		})
 	}
 }

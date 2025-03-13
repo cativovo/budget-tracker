@@ -3,7 +3,9 @@ package sqlite_test
 import (
 	"os"
 	"testing"
+	"time"
 
+	"github.com/cativovo/budget-tracker/internal/category"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/huandu/go-sqlbuilder"
@@ -85,4 +87,80 @@ func createUsers(t *testing.T, db *sqlite.DB) []user.User {
 	return users
 }
 
-// func createCategorys(t *testing.T, ctx )
+func createCategories(t *testing.T, db *sqlite.DB, u user.User) []category.Category {
+	t.Helper()
+
+	ib := sqlbuilder.SQLite.NewInsertBuilder()
+	ib.InsertInto("category")
+	ib.Cols(
+		"name",
+		"color",
+		"icon",
+		"user_id",
+	)
+
+	ccr := []category.CreateCategoryReq{
+		{
+			Name:  "food",
+			Color: "#000000",
+			Icon:  "food-icon",
+		},
+		{
+			Name:  "rent",
+			Color: "#ffffff",
+			Icon:  "rent-icon",
+		},
+		{
+			Name:  "gaming",
+			Color: "#696969",
+			Icon:  "gaming-icon",
+		},
+	}
+
+	for _, v := range ccr {
+		ib.Values(
+			v.Name,
+			v.Color,
+			v.Icon,
+			u.ID,
+		)
+	}
+
+	q, args := ib.Build()
+
+	db.ReaderWriter().MustExec(q, args...)
+
+	var dst []struct {
+		ID        string    `db:"id"`
+		Name      string    `db:"name"`
+		Color     string    `db:"color"`
+		Icon      string    `db:"icon"`
+		CreatedAt time.Time `db:"created_at"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+
+	sb := sqlbuilder.SQLite.NewSelectBuilder()
+	sb.Select(
+		"id",
+		"name",
+		"color",
+		"icon",
+		"created_at",
+		"updated_at",
+	)
+	sb.From("category")
+	sb.Where(
+		sb.EQ("user_id", u.ID),
+	)
+
+	q, args = sb.Build()
+
+	err := db.ReaderWriter().Select(&dst, q, args...)
+	assert.Nil(t, err)
+
+	categories := make([]category.Category, len(dst))
+	for i := range dst {
+		categories[i] = category.Category(dst[i])
+	}
+	return categories
+}

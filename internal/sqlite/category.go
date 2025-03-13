@@ -214,7 +214,32 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 }
 
 func (cr *CategoryRepository) DeleteCategory(ctx context.Context, id string) error {
-	panic("not yet implemented")
+	user := user.UserFromCtx(ctx)
+	logger := logger.LoggerFromCtx(ctx)
+
+	db := sqlbuilder.SQLite.NewDeleteBuilder()
+	db.DeleteFrom("category")
+	db.Where(
+		db.And(
+			db.EQ("id", id),
+			db.EQ("user_id", user.ID),
+		),
+	)
+
+	q, args := db.Build()
+
+	logger.Infow(
+		"Delete category",
+		"query", q,
+		"args", args,
+	)
+
+	_, err := cr.db.readerWriter.ExecContext(ctx, q, args...)
+	if err != nil {
+		return fmt.Errorf("sqlite.CategoryRepository: %w", err)
+	}
+
+	return nil
 }
 
 type categoryDst struct {
