@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCreateCategory(t *testing.T) {
+func TestCreateFindCategory(t *testing.T) {
 	dh := newDBHelper(t, "test_create_category.db")
 	defer dh.clean()
 
@@ -87,28 +87,47 @@ func TestCreateCategory(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctxWithUser := user.NewCtxWithUser(ctxWithLogger, test.user)
-			got, err := cr.CreateCategory(ctxWithUser, test.input)
+			created, createErr := cr.CreateCategory(ctxWithUser, test.input)
 
 			if test.err != nil {
 				wantCode := internal.GetErrorCode(test.err)
-				gotCode := internal.GetErrorCode(err)
+				gotCode := internal.GetErrorCode(createErr)
 				assert.Equal(t, wantCode, gotCode)
 
 				wantMessage := internal.GetErrorMessage(test.err)
-				gotMessage := internal.GetErrorMessage(err)
+				gotMessage := internal.GetErrorMessage(createErr)
 				assert.Equal(t, wantMessage, gotMessage)
 				return
 			}
 
-			assert.Nil(t, err)
-			assert.True(t, got.ID != "")
-			assert.Equal(t, test.want.Name, got.Name)
-			assert.Equal(t, test.want.Color, got.Color)
-			assert.Equal(t, test.want.Icon, got.Icon)
-			assert.WithinDuration(t, test.want.CreatedAt, got.CreatedAt, time.Second*5)
-			assert.WithinDuration(t, test.want.UpdatedAt, got.UpdatedAt, time.Second*5)
+			assert.Nil(t, createErr)
+			assert.True(t, created.ID != "")
+			assert.Equal(t, test.want.Name, created.Name)
+			assert.Equal(t, test.want.Color, created.Color)
+			assert.Equal(t, test.want.Icon, created.Icon)
+			assert.WithinDuration(t, test.want.CreatedAt, created.CreatedAt, time.Second*5)
+			assert.WithinDuration(t, test.want.UpdatedAt, created.UpdatedAt, time.Second*5)
+
+			found, findErr := cr.FindCategoryByID(ctxWithUser, created.ID)
+			assert.Nil(t, findErr)
+			assert.Equal(t, created, found)
 		})
 	}
+
+	t.Run("category not found", func(t *testing.T) {
+		ctxWithUser := user.NewCtxWithUser(ctxWithLogger, users[0])
+		_, err := cr.FindCategoryByID(ctxWithUser, "123")
+		assert.NotNil(t, err)
+
+		wantCode := internal.ErrorCodeNotFound
+		wantMessage := "Category not found"
+
+		gotCode := internal.GetErrorCode(err)
+		gotMessage := internal.GetErrorMessage(err)
+
+		assert.Equal(t, wantCode, gotCode)
+		assert.Equal(t, wantMessage, gotMessage)
+	})
 }
 
 func TestUpdateCategory(t *testing.T) {
@@ -299,26 +318,30 @@ func TestUpdateCategory(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			ctxWithUser := user.NewCtxWithUser(ctxWithLogger, test.user)
-			got, err := cr.UpdateCategory(ctxWithUser, test.input)
+			updated, updateErr := cr.UpdateCategory(ctxWithUser, test.input)
 
 			if test.err != nil {
 				wantCode := internal.GetErrorCode(test.err)
-				gotCode := internal.GetErrorCode(err)
+				gotCode := internal.GetErrorCode(updateErr)
 				assert.Equal(t, wantCode, gotCode)
 
 				wantMessage := internal.GetErrorMessage(test.err)
-				gotMessage := internal.GetErrorMessage(err)
+				gotMessage := internal.GetErrorMessage(updateErr)
 				assert.Equal(t, wantMessage, gotMessage)
 				return
 			}
 
-			assert.Nil(t, err)
-			assert.Equal(t, test.want.ID, got.ID)
-			assert.Equal(t, test.want.Name, got.Name)
-			assert.Equal(t, test.want.Color, got.Color)
-			assert.Equal(t, test.want.Icon, got.Icon)
-			assert.WithinDuration(t, test.want.CreatedAt, got.CreatedAt, 0)
-			assert.WithinDuration(t, test.want.UpdatedAt, got.UpdatedAt, time.Second*5)
+			assert.Nil(t, updateErr)
+			assert.Equal(t, test.want.ID, updated.ID)
+			assert.Equal(t, test.want.Name, updated.Name)
+			assert.Equal(t, test.want.Color, updated.Color)
+			assert.Equal(t, test.want.Icon, updated.Icon)
+			assert.WithinDuration(t, test.want.CreatedAt, updated.CreatedAt, 0)
+			assert.WithinDuration(t, test.want.UpdatedAt, updated.UpdatedAt, time.Second*5)
+
+			found, findErr := cr.FindCategoryByID(ctxWithUser, test.input.ID)
+			assert.Nil(t, findErr)
+			assert.Equal(t, updated, found)
 		})
 	}
 }
