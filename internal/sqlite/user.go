@@ -18,7 +18,7 @@ type UserRepository struct {
 	db *DB
 }
 
-var _ user.UserRepository = (*UserRepository)(nil)
+var _ user.Repository = (*UserRepository)(nil)
 
 func NewUserRepository(db *DB) UserRepository {
 	return UserRepository{
@@ -26,7 +26,7 @@ func NewUserRepository(db *DB) UserRepository {
 	}
 }
 
-func (ur *UserRepository) FindUserByID(ctx context.Context, id string) (user.User, error) {
+func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, error) {
 	logger := logger.LoggerFromCtx(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()

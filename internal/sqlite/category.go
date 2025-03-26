@@ -18,7 +18,7 @@ type CategoryRepository struct {
 	db *DB
 }
 
-var _ category.CategoryRepository = (*CategoryRepository)(nil)
+var _ category.Repository = (*CategoryRepository)(nil)
 
 func NewCategoryRepository(db *DB) CategoryRepository {
 	return CategoryRepository{

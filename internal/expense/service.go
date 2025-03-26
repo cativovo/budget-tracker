@@ -7,20 +7,10 @@ import (
 	"github.com/cativovo/budget-tracker/internal/validator"
 )
 
-type ExpenseService struct {
-	er ExpenseRepository
-	v  *validator.Validator
-}
-
-func NewExpenseService(er ExpenseRepository, v *validator.Validator) *ExpenseService {
-	return &ExpenseService{
-		er: er,
-		v:  v,
-	}
-}
-
-func (es *ExpenseService) ListExpenseSummaries(ctx context.Context, lo internal.ListOptions) ([]ExpenseSummary, error) {
-	return es.er.ListExpenseSummaries(ctx, lo)
+type Service interface {
+	ListExpenseSummaries(ctx context.Context, lo internal.ListOptions) ([]ExpenseSummary, error)
+	Create(ctx context.Context, c CreateExpenseReq) (Expense, error)
+	Update(ctx context.Context, u UpdateExpenseReq) (Expense, error)
 }
 
 type CreateExpenseReq struct {
@@ -30,13 +20,6 @@ type CreateExpenseReq struct {
 	Note   string `json:"note"`
 }
 
-func (es *ExpenseService) CreateExpense(ctx context.Context, c CreateExpenseReq) (Expense, error) {
-	if err := es.v.Struct(c); err != nil {
-		return Expense{}, err
-	}
-	return es.er.CreateExpense(ctx, c)
-}
-
 type UpdateExpenseReq struct {
 	Name   string `json:"name"`
 	Amount int64  `json:"amount" validate:"gt=0"`
@@ -44,9 +27,32 @@ type UpdateExpenseReq struct {
 	Note   string `json:"note"`
 }
 
-func (es *ExpenseService) UpdateExpense(ctx context.Context, u UpdateExpenseReq) (Expense, error) {
-	if err := es.v.Struct(u); err != nil {
-		return Expense{}, err
+type service struct {
+	r Repository
+	v *validator.Validator
+}
+
+func NewService(r Repository, v *validator.Validator) Service {
+	return &service{
+		r: r,
+		v: v,
 	}
-	return es.er.UpdateExpense(ctx, u)
+}
+
+func (s *service) ListExpenseSummaries(ctx context.Context, lo internal.ListOptions) ([]ExpenseSummary, error) {
+	return s.r.ListExpenseSummaries(ctx, lo)
+}
+
+func (s *service) Create(ctx context.Context, c CreateExpenseReq) (Expense, error) {
+	if err := s.v.Struct(c); err != nil {
+		return Expense{}, internal.NewError(internal.ErrorCodeInvalid, err.Error())
+	}
+	return s.r.CreateExpense(ctx, c)
+}
+
+func (s *service) Update(ctx context.Context, u UpdateExpenseReq) (Expense, error) {
+	if err := s.v.Struct(u); err != nil {
+		return Expense{}, internal.NewError(internal.ErrorCodeInvalid, err.Error())
+	}
+	return s.r.UpdateExpense(ctx, u)
 }

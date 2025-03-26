@@ -11,7 +11,7 @@ type ExpenseRepository struct {
 	db *DB
 }
 
-var _ expense.ExpenseRepository = (*ExpenseRepository)(nil)
+var _ expense.Repository = (*ExpenseRepository)(nil)
 
 func NewExpenseRepository(db *DB) ExpenseRepository {
 	return ExpenseRepository{

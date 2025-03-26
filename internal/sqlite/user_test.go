@@ -109,7 +109,7 @@ func TestFindUserByID(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			got, err := ur.FindUserByID(ctxWithLogger, test.input)
+			got, err := ur.UserByID(ctxWithLogger, test.input)
 
 			if test.err != nil {
 				assert.NotNil(t, err)
@@ -158,7 +158,7 @@ func TestDeleteUser(t *testing.T) {
 			err := ur.DeleteUser(ctxWithLogger, test.input)
 			assert.Nil(t, err)
 
-			_, err = ur.FindUserByID(ctxWithLogger, test.input)
+			_, err = ur.UserByID(ctxWithLogger, test.input)
 			assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
 			assert.Equal(t, "User not found", internal.GetErrorMessage(err))
 		})

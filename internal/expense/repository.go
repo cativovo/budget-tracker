@@ -6,7 +6,7 @@ import (
 	"github.com/cativovo/budget-tracker/internal"
 )
 
-type ExpenseRepository interface {
+type Repository interface {
 	ListExpenseSummaries(ctx context.Context, lo internal.ListOptions) ([]ExpenseSummary, error)
 	CreateExpense(ctx context.Context, e CreateExpenseReq) (Expense, error)
 	UpdateExpense(ctx context.Context, u UpdateExpenseReq) (Expense, error)
