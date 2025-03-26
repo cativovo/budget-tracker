@@ -5,7 +5,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/cativovo/budget-tracker/internal"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -60,7 +59,7 @@ func (v *Validator) Struct(s any) error {
 			vErrs = append(vErrs, e)
 		}
 
-		return internal.NewError(internal.ErrorCodeInvalid, vErrs.Error())
+		return vErrs
 	}
 
 	return nil
