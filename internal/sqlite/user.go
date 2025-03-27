@@ -27,7 +27,7 @@ func NewUserRepository(db *DB) UserRepository {
 }
 
 func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, error) {
-	logger := logger.LoggerFromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -55,7 +55,7 @@ func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, e
 			return user.User{}, internal.NewError(internal.ErrorCodeNotFound, "User not found")
 		}
 
-		return user.User{}, fmt.Errorf("sqlite.UserRepository: %w", err)
+		return user.User{}, fmt.Errorf("sqlite.UserRepository.UserByID: %w", err)
 	}
 
 	return user.User{
@@ -66,7 +66,7 @@ func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, e
 }
 
 func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) (user.User, error) {
-	logger := logger.LoggerFromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("user")
@@ -95,14 +95,14 @@ func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) 
 			return user.User{}, internal.NewError(internal.ErrorCodeConflict, "User already exists")
 		}
 
-		return user.User{}, fmt.Errorf("sqlite.UserRepository: %w", err)
+		return user.User{}, fmt.Errorf("sqlite.UserRepository.CreateUser: %w", err)
 	}
 
 	return user.User(u), nil
 }
 
 func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
-	logger := logger.LoggerFromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("user")
@@ -117,7 +117,7 @@ func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
 
 	_, err := ur.db.readerWriter.ExecContext(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("sqlite.UserRepository: %w", err)
+		return fmt.Errorf("sqlite.UserRepository.DeleteUser: %w", err)
 	}
 
 	return nil

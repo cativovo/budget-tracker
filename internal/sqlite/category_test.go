@@ -108,7 +108,7 @@ func TestCreateFindCategory(t *testing.T) {
 			assert.WithinDuration(t, test.want.CreatedAt, created.CreatedAt, time.Second*5)
 			assert.WithinDuration(t, test.want.UpdatedAt, created.UpdatedAt, time.Second*5)
 
-			found, findErr := cr.FindCategoryByID(ctxWithUser, created.ID)
+			found, findErr := cr.CategoryByID(ctxWithUser, created.ID)
 			assert.Nil(t, findErr)
 			assert.Equal(t, created, found)
 		})
@@ -116,7 +116,7 @@ func TestCreateFindCategory(t *testing.T) {
 
 	t.Run("category not found", func(t *testing.T) {
 		ctxWithUser := user.NewCtxWithUser(ctxWithLogger, users[0])
-		_, err := cr.FindCategoryByID(ctxWithUser, "123")
+		_, err := cr.CategoryByID(ctxWithUser, "123")
 		assert.NotNil(t, err)
 
 		gotCode := internal.GetErrorCode(err)
@@ -336,7 +336,7 @@ func TestUpdateCategory(t *testing.T) {
 			assert.WithinDuration(t, test.want.CreatedAt, updated.CreatedAt, 0)
 			assert.WithinDuration(t, test.want.UpdatedAt, updated.UpdatedAt, time.Second*5)
 
-			found, findErr := cr.FindCategoryByID(ctxWithUser, test.input.ID)
+			found, findErr := cr.CategoryByID(ctxWithUser, test.input.ID)
 			assert.Nil(t, findErr)
 			assert.Equal(t, updated, found)
 		})
@@ -393,7 +393,7 @@ func TestDeleteCategory(t *testing.T) {
 			deleteErr := cr.DeleteCategory(user.NewCtxWithUser(ctxWithLogger, test.deleter), test.categoryID)
 			assert.Nil(t, deleteErr)
 
-			_, findErr := cr.FindCategoryByID(user.NewCtxWithUser(ctxWithLogger, test.user), test.categoryID)
+			_, findErr := cr.CategoryByID(user.NewCtxWithUser(ctxWithLogger, test.user), test.categoryID)
 			if test.shouldFound {
 				assert.Nil(t, findErr)
 				return
@@ -404,6 +404,83 @@ func TestDeleteCategory(t *testing.T) {
 
 			gotMessage := internal.GetErrorMessage(findErr)
 			assert.Equal(t, "Category not found", gotMessage)
+		})
+	}
+}
+
+func TestListCategories(t *testing.T) {
+	dh := newDBHelper(t, "test_list_categories.db")
+	defer dh.clean()
+
+	cr := sqlite.NewCategoryRepository(dh.db)
+	ctxWithLogger := logger.NewCtxWithLogger(context.Background(), zapLogger)
+
+	users := createUsers(t, dh.db)
+
+	type userWithCategory struct {
+		user       user.User
+		categories []category.Category
+	}
+
+	uwc := []userWithCategory{
+		{
+			user:       users[0],
+			categories: createCategories(t, dh.db, users[0]),
+		},
+		{
+			user: users[1],
+		},
+	}
+
+	tests := []struct {
+		name           string
+		user           user.User
+		listOptions    internal.ListOptions
+		wantCategories []category.Category
+	}{
+		{
+			name: fmt.Sprintf("%s categories, limit: 10, offset: 0", uwc[0]),
+			user: uwc[0].user,
+			listOptions: internal.ListOptions{
+				Limit:  10,
+				Offset: 0,
+			},
+			wantCategories: uwc[0].categories,
+		},
+		{
+			name: fmt.Sprintf("%s categories, limit: 1, offset: 0", uwc[0]),
+			user: uwc[0].user,
+			listOptions: internal.ListOptions{
+				Limit:  1,
+				Offset: 0,
+			},
+			wantCategories: uwc[0].categories[0:1],
+		},
+		{
+			name: fmt.Sprintf("%s categories, limit: 10, offset: 1", uwc[0]),
+			user: uwc[0].user,
+			listOptions: internal.ListOptions{
+				Limit:  10,
+				Offset: 1,
+			},
+			wantCategories: uwc[0].categories[1:],
+		},
+		{
+			name: fmt.Sprintf("%s categories, limit: 10, offset: 0", uwc[1]),
+			user: uwc[1].user,
+			listOptions: internal.ListOptions{
+				Limit:  10,
+				Offset: 0,
+			},
+			wantCategories: uwc[1].categories,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotCategories, err := cr.ListCategories(user.NewCtxWithUser(ctxWithLogger, test.user), test.listOptions)
+			assert.Nil(t, err)
+			assert.Equal(t, test.wantCategories, gotCategories)
 		})
 	}
 }

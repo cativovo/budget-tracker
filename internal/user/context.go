@@ -12,7 +12,7 @@ func NewCtxWithUser(ctx context.Context, u User) context.Context {
 	return context.WithValue(ctx, CtxKeyUser, u)
 }
 
-func UserFromCtx(ctx context.Context) User {
+func FromCtx(ctx context.Context) User {
 	u, ok := ctx.Value(CtxKeyUser).(User)
 	if !ok {
 		panic("UserFromContext: missing or invalid user in context")

@@ -26,9 +26,9 @@ func NewCategoryRepository(db *DB) CategoryRepository {
 	}
 }
 
-func (cr *CategoryRepository) FindCategoryByID(ctx context.Context, id string) (category.Category, error) {
-	u := user.UserFromCtx(ctx)
-	logger := logger.LoggerFromCtx(ctx)
+func (cr *CategoryRepository) CategoryByID(ctx context.Context, id string) (category.Category, error) {
+	u := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -61,19 +61,69 @@ func (cr *CategoryRepository) FindCategoryByID(ctx context.Context, id string) (
 			return category.Category{}, internal.NewError(internal.ErrorCodeNotFound, "Category not found")
 		}
 
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository: %w", err)
+		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.CategoryByID: GetContext: %w", err)
 	}
 
 	return category.Category(dst), nil
 }
 
 func (cr *CategoryRepository) ListCategories(ctx context.Context, o internal.ListOptions) ([]category.Category, error) {
-	panic("not yet implemented")
+	u := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
+
+	sb := sqlbuilder.SQLite.NewSelectBuilder()
+	sb.Select(
+		"id",
+		"name",
+		"color",
+		"icon",
+		"created_at",
+		"updated_at",
+	)
+	sb.From("category")
+	sb.Where(
+		sb.EQ(
+			"user_id",
+			u.ID,
+		),
+	)
+	sb.Limit(o.Limit)
+	sb.Offset(o.Offset)
+
+	q, args := sb.Build()
+
+	logger.Infow(
+		"List category",
+		"query", q,
+		"args", args,
+	)
+
+	rows, err := cr.db.reader.QueryxContext(ctx, q, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+
+		return nil, fmt.Errorf("sqlite.CategoryRepository.ListCategories: QueryxContext: %w", err)
+	}
+
+	var result []category.Category
+	for rows.Next() {
+		var dst categoryDst
+		err := rows.StructScan(&dst)
+		if err != nil {
+			return nil, fmt.Errorf("sqlite.CategoryRepository.ListCategories: StructScan: %w", err)
+		}
+
+		result = append(result, category.Category(dst))
+	}
+
+	return result, nil
 }
 
-func (cr *CategoryRepository) findCategoryByName(ctx context.Context, name string) (category.Category, error) {
-	u := user.UserFromCtx(ctx)
-	logger := logger.LoggerFromCtx(ctx)
+func (cr *CategoryRepository) categoryByName(ctx context.Context, name string) (category.Category, error) {
+	u := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -102,14 +152,14 @@ func (cr *CategoryRepository) findCategoryByName(ctx context.Context, name strin
 
 	var dst categoryDst
 	if err := cr.db.reader.GetContext(ctx, &dst, q, args...); err != nil {
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository: %w", err)
+		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.categoryByName: GetContext: %w", err)
 	}
 
 	return category.Category(dst), nil
 }
 
 func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.CreateCategoryReq) (category.Category, error) {
-	_, err := cr.findCategoryByName(ctx, c.Name)
+	_, err := cr.categoryByName(ctx, c.Name)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return category.Category{}, err
 	}
@@ -117,8 +167,8 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
 	}
 
-	u := user.UserFromCtx(ctx)
-	logger := logger.LoggerFromCtx(ctx)
+	u := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("category")
@@ -153,14 +203,14 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 
 	var dst categoryDst
 	if err := cr.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository: %w", err)
+		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.CreateCategory: GetContext: %w", err)
 	}
 
 	return category.Category(dst), nil
 }
 
 func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.UpdateCategoryReq) (category.Category, error) {
-	found, err := cr.findCategoryByName(ctx, c.Name)
+	found, err := cr.categoryByName(ctx, c.Name)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return category.Category{}, err
 	}
@@ -168,8 +218,8 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
 	}
 
-	u := user.UserFromCtx(ctx)
-	logger := logger.LoggerFromCtx(ctx)
+	u := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	ub := sqlbuilder.SQLite.NewUpdateBuilder()
 	ub.Update("category")
@@ -207,15 +257,15 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 			return category.Category{}, internal.NewError(internal.ErrorCodeNotFound, "Category not found")
 		}
 
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository: %w", err)
+		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.UpdateCategory: %w", err)
 	}
 
 	return category.Category(dst), nil
 }
 
 func (cr *CategoryRepository) DeleteCategory(ctx context.Context, id string) error {
-	user := user.UserFromCtx(ctx)
-	logger := logger.LoggerFromCtx(ctx)
+	user := user.FromCtx(ctx)
+	logger := logger.FromCtx(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("category")
@@ -236,7 +286,7 @@ func (cr *CategoryRepository) DeleteCategory(ctx context.Context, id string) err
 
 	_, err := cr.db.readerWriter.ExecContext(ctx, q, args...)
 	if err != nil {
-		return fmt.Errorf("sqlite.CategoryRepository: %w", err)
+		return fmt.Errorf("sqlite.CategoryRepository.DeleteCategory: ExecContext: %w", err)
 	}
 
 	return nil

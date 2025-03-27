@@ -7,7 +7,7 @@ import (
 )
 
 type Repository interface {
-	FindCategoryByID(ctx context.Context, id string) (Category, error)
+	CategoryByID(ctx context.Context, id string) (Category, error)
 	ListCategories(ctx context.Context, lo internal.ListOptions) ([]Category, error)
 	CreateCategory(ctx context.Context, c CreateCategoryReq) (Category, error)
 	UpdateCategory(ctx context.Context, u UpdateCategoryReq) (Category, error)
