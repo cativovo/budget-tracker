@@ -27,8 +27,8 @@ func NewCategoryRepository(db *DB) CategoryRepository {
 }
 
 func (cr *CategoryRepository) CategoryByID(ctx context.Context, id string) (category.Category, error) {
-	u := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -68,8 +68,8 @@ func (cr *CategoryRepository) CategoryByID(ctx context.Context, id string) (cate
 }
 
 func (cr *CategoryRepository) ListCategories(ctx context.Context, o internal.ListOptions) ([]category.Category, error) {
-	u := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -122,8 +122,8 @@ func (cr *CategoryRepository) ListCategories(ctx context.Context, o internal.Lis
 }
 
 func (cr *CategoryRepository) categoryByName(ctx context.Context, name string) (category.Category, error) {
-	u := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -167,8 +167,8 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
 	}
 
-	u := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("category")
@@ -218,8 +218,8 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
 	}
 
-	u := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	ub := sqlbuilder.SQLite.NewUpdateBuilder()
 	ub.Update("category")
@@ -264,8 +264,8 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 }
 
 func (cr *CategoryRepository) DeleteCategory(ctx context.Context, id string) error {
-	user := user.FromCtx(ctx)
-	logger := logger.FromCtx(ctx)
+	user := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("category")

@@ -27,7 +27,7 @@ func NewUserRepository(db *DB) UserRepository {
 }
 
 func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, error) {
-	logger := logger.FromCtx(ctx)
+	logger := logger.FromContext(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -66,7 +66,7 @@ func (ur *UserRepository) UserByID(ctx context.Context, id string) (user.User, e
 }
 
 func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) (user.User, error) {
-	logger := logger.FromCtx(ctx)
+	logger := logger.FromContext(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("user")
@@ -102,7 +102,7 @@ func (ur *UserRepository) CreateUser(ctx context.Context, u user.CreateUserReq) 
 }
 
 func (ur *UserRepository) DeleteUser(ctx context.Context, id string) error {
-	logger := logger.FromCtx(ctx)
+	logger := logger.FromContext(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("user")

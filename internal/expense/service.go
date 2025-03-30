@@ -14,10 +14,11 @@ type Service interface {
 }
 
 type CreateExpenseReq struct {
-	Name   string `json:"name" validate:"required"`
-	Amount int64  `json:"amount" validate:"gt=0"`
-	Date   string `json:"date" validate:"required,datetime=2006-01-02"`
-	Note   string `json:"note"`
+	Name       string `json:"name" validate:"required"`
+	Amount     int64  `json:"amount" validate:"gt=0"`
+	Date       string `json:"date" validate:"required,datetime=2006-01-02"`
+	CategoryID string `json:"category_id" validate:"required"`
+	Note       string `json:"note"`
 }
 
 type CreateExpenseGroupReq struct {
