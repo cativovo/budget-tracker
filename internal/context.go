@@ -1,3 +1,3 @@
 package internal
 
-type CtxKey string
+type ContextKey string

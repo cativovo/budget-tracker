@@ -7,14 +7,14 @@ import (
 	"go.uber.org/zap"
 )
 
-const CtxKeyLogger internal.CtxKey = "logger"
+const ContextKeyLogger internal.ContextKey = "logger"
 
-func NewCtxWithLogger(ctx context.Context, z *zap.SugaredLogger) context.Context {
-	return context.WithValue(ctx, CtxKeyLogger, z)
+func NewContextWithLogger(ctx context.Context, z *zap.SugaredLogger) context.Context {
+	return context.WithValue(ctx, ContextKeyLogger, z)
 }
 
 func FromContext(ctx context.Context) *zap.SugaredLogger {
-	l, ok := ctx.Value(CtxKeyLogger).(*zap.SugaredLogger)
+	l, ok := ctx.Value(ContextKeyLogger).(*zap.SugaredLogger)
 	if !ok {
 		panic("LoggerFromCtx: missing or invalid logger in context")
 	}
