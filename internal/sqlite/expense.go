@@ -2,25 +2,113 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/internal/category"
 	"github.com/cativovo/budget-tracker/internal/expense"
+	"github.com/cativovo/budget-tracker/internal/logger"
+	"github.com/cativovo/budget-tracker/internal/user"
+	"github.com/huandu/go-sqlbuilder"
 )
 
 type ExpenseRepository struct {
 	db *DB
+	cr CategoryRepository
 }
 
 var _ expense.Repository = (*ExpenseRepository)(nil)
 
-func NewExpenseRepository(db *DB) ExpenseRepository {
+func NewExpenseRepository(db *DB, cr CategoryRepository) ExpenseRepository {
 	return ExpenseRepository{
 		db: db,
+		cr: cr,
 	}
 }
 
 func (er *ExpenseRepository) ExpenseByID(ctx context.Context, id string) (expense.Expense, error) {
-	panic("not yet implemented")
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
+
+	sb := sqlbuilder.SQLite.NewSelectBuilder()
+	sb.Select(
+		"e.id",
+		"e.name",
+		"e.amount",
+		"e.date",
+		"e.note",
+		"e.created_at",
+		"e.updated_at",
+		sb.As("c.id", "category_id"),
+		sb.As("c.name", "category_name"),
+		sb.As("c.color", "category_color"),
+		sb.As("c.icon", "category_icon"),
+		sb.As("c.created_at", "category_created_at"),
+		sb.As("c.updated_at", "category_updated_at"),
+	)
+	sb.From("expense e")
+	sb.Join(
+		"category c",
+		"c.id = e.category_id",
+	)
+	sb.Where(
+		sb.And(
+			sb.EQ("e.id", id),
+			sb.EQ("e.user_id", u.ID),
+		),
+	)
+
+	q, args := sb.Build()
+
+	logger.Infow(
+		"Find expense by id",
+		"query", q,
+		"args", args,
+	)
+
+	var dst struct {
+		ID                string    `db:"id"`
+		Name              string    `db:"name"`
+		Amount            int64     `db:"amount"`
+		Date              time.Time `db:"date"`
+		Note              string    `db:"note"`
+		Category          string    `db:"category"`
+		CreatedAt         time.Time `db:"created_at"`
+		UpdatedAt         time.Time `db:"updated_at"`
+		CategoryID        string    `db:"category_id"`
+		CategoryName      string    `db:"category_name"`
+		CategoryColor     string    `db:"category_color"`
+		CategoryIcon      string    `db:"category_icon"`
+		CategoryCreatedAt time.Time `db:"category_created_at"`
+		CategoryUpdatedAt time.Time `db:"category_updated_at"`
+	}
+	if err := er.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return expense.Expense{}, internal.NewError(internal.ErrorCodeNotFound, "Expense not found")
+		}
+
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.ExpenseByID: %w", err)
+	}
+
+	return expense.Expense{
+		ID:     dst.ID,
+		Name:   dst.Name,
+		Amount: dst.Amount,
+		Date:   dst.Date,
+		Note:   dst.Note,
+		Category: category.Category{
+			ID:        dst.CategoryID,
+			Name:      dst.CategoryName,
+			Color:     dst.CategoryColor,
+			Icon:      dst.CategoryIcon,
+			CreatedAt: dst.CategoryCreatedAt,
+			UpdatedAt: dst.CategoryUpdatedAt,
+		},
+		CreatedAt: dst.CreatedAt,
+		UpdatedAt: dst.UpdatedAt,
+	}, nil
 }
 
 func (er *ExpenseRepository) ExpenseGroupByID(ctx context.Context, id string) (expense.ExpenseGroup, error) {
@@ -32,7 +120,67 @@ func (er *ExpenseRepository) ListExpenseSummaries(ctx context.Context, lo intern
 }
 
 func (er *ExpenseRepository) CreateExpense(ctx context.Context, e expense.CreateExpenseReq) (expense.Expense, error) {
-	panic("not yet implemented")
+	category, err := er.cr.CategoryByID(ctx, e.CategoryID)
+	if err != nil {
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.CreateExpense: %w", err)
+	}
+
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
+
+	ib := sqlbuilder.SQLite.NewInsertBuilder()
+	ib.InsertInto("expense")
+	ib.Cols(
+		"name",
+		"amount",
+		"date",
+		"category_id",
+		"note",
+		"user_id",
+	)
+	ib.Values(
+		e.Name,
+		e.Amount,
+		e.Date,
+		e.CategoryID,
+		e.Note,
+		u.ID,
+	)
+	ib.Returning(
+		"id",
+		"date",
+		"created_at",
+		"updated_at",
+	)
+
+	q, args := ib.Build()
+
+	logger.Infow(
+		"Insert expense",
+		"query", q,
+		"args", args,
+	)
+
+	var dst struct {
+		ID        string    `db:"id"`
+		Date      time.Time `db:"date"`
+		CreatedAt time.Time `db:"created_at"`
+		UpdatedAt time.Time `db:"updated_at"`
+	}
+	if err := er.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.CreateExpense: %w", err)
+	}
+
+	return expense.Expense{
+		ID:        dst.ID,
+		Name:      e.Name,
+		Amount:    e.Amount,
+		Date:      dst.Date,
+		Note:      e.Note,
+		Category:  category,
+		CreatedAt: dst.CreatedAt,
+		UpdatedAt: dst.UpdatedAt,
+	}, nil
 }
 
 func (er *ExpenseRepository) CreateExpenseGroup(ctx context.Context, e expense.CreateExpenseGroupReq) (expense.ExpenseGroup, error) {

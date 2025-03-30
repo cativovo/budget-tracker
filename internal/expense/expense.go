@@ -20,6 +20,7 @@ type Expense struct {
 type ExpenseGroup struct {
 	ID        string
 	Name      string
+	Date      time.Time
 	Expenses  []Expense
 	Note      string
 	CreatedAt time.Time
