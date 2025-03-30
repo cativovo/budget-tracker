@@ -20,11 +20,34 @@ type CreateExpenseReq struct {
 	Note   string `json:"note"`
 }
 
+type CreateExpenseGroupReq struct {
+	Name     string `json:"name" validate:"required"`
+	Expenses []struct {
+		Name   string `json:"name" validate:"required"`
+		Amount int64  `json:"amount" validate:"required"`
+	} `json:"expenses" validate:"required"`
+	Date string `json:"date" validate:"required,datetime=2006-01-02"`
+	Note string `json:"note"`
+}
+
 type UpdateExpenseReq struct {
+	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Amount int64  `json:"amount" validate:"gt=0"`
 	Date   string `json:"date" validate:"datetime=2006-01-02"`
 	Note   string `json:"note"`
+}
+
+type UpdateExpenseGroupReq struct {
+	ID       string `json:"id"`
+	Name     string `json:"name" validate:"required"`
+	Expenses []struct {
+		ID     string `json:"id"`
+		Name   string `json:"name" validate:"required"`
+		Amount int64  `json:"amount" validate:"required"`
+	} `json:"expenses" validate:"required"`
+	Date string `json:"date" validate:"required,datetime=2006-01-02"`
+	Note string `json:"note"`
 }
 
 type service struct {
