@@ -16,7 +16,7 @@ func TestCreateUser(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.NewContextWithLogger(context.Background(), zapLogger)
+	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
 
 	tests := []struct {
 		name  string
@@ -76,7 +76,7 @@ func TestFindUserByID(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.NewContextWithLogger(context.Background(), zapLogger)
+	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
 
 	createUsers(t, dh.db)
 
@@ -135,7 +135,7 @@ func TestDeleteUser(t *testing.T) {
 	defer dh.clean()
 
 	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.NewContextWithLogger(context.Background(), zapLogger)
+	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
 
 	createUsers(t, dh.db)
 

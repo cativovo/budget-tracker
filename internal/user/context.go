@@ -8,7 +8,7 @@ import (
 
 const ContextKeyUser internal.ContextKey = "user"
 
-func NewContextWithUser(ctx context.Context, u User) context.Context {
+func ContextWithUser(ctx context.Context, u User) context.Context {
 	return context.WithValue(ctx, ContextKeyUser, u)
 }
 

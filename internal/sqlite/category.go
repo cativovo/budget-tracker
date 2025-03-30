@@ -196,7 +196,7 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 	q, args := ib.Build()
 
 	logger.Infow(
-		"Insert new category",
+		"Insert category",
 		"query", q,
 		"args", args,
 	)
@@ -246,7 +246,7 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 	q, args := ub.Build()
 
 	logger.Infow(
-		"Insert new category",
+		"Update category",
 		"query", q,
 		"args", args,
 	)

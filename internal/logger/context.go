@@ -9,7 +9,7 @@ import (
 
 const ContextKeyLogger internal.ContextKey = "logger"
 
-func NewContextWithLogger(ctx context.Context, z *zap.SugaredLogger) context.Context {
+func ContextWithLogger(ctx context.Context, z *zap.SugaredLogger) context.Context {
 	return context.WithValue(ctx, ContextKeyLogger, z)
 }
 
