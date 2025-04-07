@@ -111,10 +111,6 @@ func (er *ExpenseRepository) ExpenseByID(ctx context.Context, id string) (expens
 	}, nil
 }
 
-func (er *ExpenseRepository) ExpenseGroupByID(ctx context.Context, id string) (expense.ExpenseGroup, error) {
-	panic("not yet implemented")
-}
-
 func (er *ExpenseRepository) ListExpenseSummaries(ctx context.Context, lo internal.ListOptions) ([]expense.ExpenseSummary, error) {
 	panic("not yet implemented")
 }
@@ -183,14 +179,97 @@ func (er *ExpenseRepository) CreateExpense(ctx context.Context, e expense.Create
 	}, nil
 }
 
+func (er *ExpenseRepository) UpdateExpense(ctx context.Context, e expense.UpdateExpenseReq) (expense.Expense, error) {
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
+
+	ub := sqlbuilder.SQLite.NewUpdateBuilder()
+	ub.Update("expense")
+
+	if e.Name != nil {
+		ub.SetMore(ub.Assign("name", e.Name))
+	}
+	if e.Amount != nil {
+		ub.SetMore(ub.Assign("amount", e.Amount))
+	}
+	if e.Date != nil {
+		ub.SetMore(ub.Assign("date", e.Date))
+	}
+	if e.CategoryID != nil {
+		ub.SetMore(ub.Assign("category_id", e.CategoryID))
+	}
+	if e.Note != nil {
+		ub.SetMore(ub.Assign("note", e.Note))
+	}
+
+	ub.Where(
+		ub.And(
+			ub.EQ("id", e.ID),
+			ub.EQ("user_id", u.ID),
+		),
+	)
+
+	// https://github.com/huandu/go-sqlbuilder/issues/142
+	ub.SQL("RETURNING name, amount, date, category_id, note, created_at, updated_at")
+
+	q, args := ub.Build()
+
+	logger.Infow(
+		"Update expense",
+		"query", q,
+		"args", args,
+	)
+
+	var dst struct {
+		Name       string    `db:"name"`
+		Amount     int64     `db:"amount"`
+		Date       time.Time `db:"date"`
+		CategoryID string    `db:"category_id"`
+		Note       string    `db:"note"`
+		CreatedAt  time.Time `db:"created_at"`
+		UpdatedAt  time.Time `db:"updated_at"`
+	}
+	if err := er.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return expense.Expense{}, internal.NewError(internal.ErrorCodeNotFound, "Expense not found")
+		}
+
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.UpdateExpense: %w", err)
+	}
+
+	c, err := er.cr.CategoryByID(ctx, dst.CategoryID)
+	if err != nil {
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.UpdateExpense: %w", err)
+	}
+
+	return expense.Expense{
+		ID:        e.ID,
+		Name:      dst.Name,
+		Amount:    dst.Amount,
+		Date:      dst.Date,
+		Note:      dst.Note,
+		Category:  c,
+		CreatedAt: dst.CreatedAt,
+		UpdatedAt: dst.UpdatedAt,
+	}, nil
+}
+
+func (er *ExpenseRepository) DeleteExpense(ctx context.Context, id string) error {
+	panic("not yet implemented")
+}
+
+func (er *ExpenseRepository) ExpenseGroupByID(ctx context.Context, id string) (expense.ExpenseGroup, error) {
+	panic("not yet implemented")
+}
+
 func (er *ExpenseRepository) CreateExpenseGroup(ctx context.Context, e expense.CreateExpenseGroupReq) (expense.ExpenseGroup, error) {
 	panic("not yet implemented")
 }
 
-func (er *ExpenseRepository) UpdateExpense(ctx context.Context, e expense.UpdateExpenseReq) (expense.Expense, error) {
+func (er *ExpenseRepository) UpdateExpenseGroup(ctx context.Context, e expense.UpdateExpenseGroupReq) (expense.ExpenseGroup, error) {
 	panic("not yet implemented")
 }
 
-func (er *ExpenseRepository) UpdateExpenseGroup(ctx context.Context, e expense.UpdateExpenseGroupReq) (expense.ExpenseGroup, error) {
+func (er *ExpenseRepository) DeleteExpenseGroup(ctx context.Context, id string) error {
 	panic("not yet implemented")
 }

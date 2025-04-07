@@ -164,3 +164,8 @@ func createCategories(t *testing.T, db *sqlite.DB, u user.User) []category.Categ
 	}
 	return categories
 }
+
+func toPtr[T any](t *testing.T, v T) *T {
+	t.Helper()
+	return &v
+}
