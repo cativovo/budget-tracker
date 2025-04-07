@@ -197,7 +197,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:   categories[0].category.ID,
-				Name: "entertainment",
+				Name: toPtr(t, "entertainment"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -213,7 +213,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:    categories[0].category.ID,
-				Color: "#ffffff",
+				Color: toPtr(t, "#ffffff"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -229,7 +229,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:   categories[0].category.ID,
-				Icon: "entertainment-icon",
+				Icon: toPtr(t, "entertainment-icon"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -245,9 +245,9 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:    categories[0].category.ID,
-				Name:  "drinks",
-				Color: "#d4d4d4",
-				Icon:  "drinks-icon",
+				Name:  toPtr(t, "drinks"),
+				Color: toPtr(t, "#d4d4d4"),
+				Icon:  toPtr(t, "drinks-icon"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -263,9 +263,9 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:    categories[2].category.ID,
-				Name:  "food",
-				Color: "#696969",
-				Icon:  "food-icon",
+				Name:  toPtr(t, "food"),
+				Color: toPtr(t, "#696969"),
+				Icon:  toPtr(t, "food-icon"),
 			},
 			err: internal.NewError(internal.ErrorCodeNotFound, "Category not found"),
 		},
@@ -274,7 +274,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:   categories[0].category.ID,
-				Name: "gaming",
+				Name: toPtr(t, "gaming"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -290,7 +290,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:   categories[0].category.ID,
-				Name: "gaming",
+				Name: toPtr(t, "gaming"),
 			},
 			want: category.Category{
 				ID:        categories[0].category.ID,
@@ -306,7 +306,7 @@ func TestUpdateCategory(t *testing.T) {
 			user: categories[0].user,
 			input: category.UpdateCategoryReq{
 				ID:   categories[0].category.ID,
-				Name: "rent",
+				Name: toPtr(t, "rent"),
 			},
 			err: internal.NewError(internal.ErrorCodeConflict, "rent category already exists"),
 		},

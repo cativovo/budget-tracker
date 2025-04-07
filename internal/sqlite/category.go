@@ -210,12 +210,14 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 }
 
 func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.UpdateCategoryReq) (category.Category, error) {
-	found, err := cr.categoryByName(ctx, c.Name)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return category.Category{}, err
-	}
-	if err == nil && found.ID != c.ID {
-		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
+	if c.Name != nil {
+		found, err := cr.categoryByName(ctx, *c.Name)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return category.Category{}, err
+		}
+		if err == nil && found.ID != c.ID {
+			return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", *c.Name)
+		}
 	}
 
 	u := user.FromContext(ctx)
@@ -224,13 +226,13 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 	ub := sqlbuilder.SQLite.NewUpdateBuilder()
 	ub.Update("category")
 
-	if c.Name != "" {
+	if c.Name != nil {
 		ub.SetMore(ub.Assign("name", c.Name))
 	}
-	if c.Color != "" {
+	if c.Color != nil {
 		ub.SetMore(ub.Assign("color", c.Color))
 	}
-	if c.Icon != "" {
+	if c.Icon != nil {
 		ub.SetMore(ub.Assign("icon", c.Icon))
 	}
 
@@ -241,7 +243,7 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 		),
 	)
 	// https://github.com/huandu/go-sqlbuilder/issues/142
-	ub.SQL("RETURNING id, name, color, icon, created_at, updated_at")
+	ub.SQL("RETURNING name, color, icon, created_at, updated_at")
 
 	q, args := ub.Build()
 
@@ -259,6 +261,8 @@ func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.Upd
 
 		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.UpdateCategory: %w", err)
 	}
+
+	dst.ID = c.ID
 
 	return category.Category(dst), nil
 }
