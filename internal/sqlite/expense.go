@@ -89,7 +89,7 @@ func (er *ExpenseRepository) ExpenseByID(ctx context.Context, id string) (expens
 			return expense.Expense{}, internal.NewError(internal.ErrorCodeNotFound, "Expense not found")
 		}
 
-		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.ExpenseByID: %w", err)
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.ExpenseByID: GetContext: %w", err)
 	}
 
 	return expense.Expense{
@@ -164,7 +164,7 @@ func (er *ExpenseRepository) CreateExpense(ctx context.Context, e expense.Create
 		UpdatedAt time.Time `db:"updated_at"`
 	}
 	if err := er.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
-		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.CreateExpense: %w", err)
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.CreateExpense: GetContext: %w", err)
 	}
 
 	return expense.Expense{
@@ -234,7 +234,7 @@ func (er *ExpenseRepository) UpdateExpense(ctx context.Context, e expense.Update
 			return expense.Expense{}, internal.NewError(internal.ErrorCodeNotFound, "Expense not found")
 		}
 
-		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.UpdateExpense: %w", err)
+		return expense.Expense{}, fmt.Errorf("sqlite.ExpenseRepository.UpdateExpense: GetContext: %w", err)
 	}
 
 	c, err := er.cr.CategoryByID(ctx, dst.CategoryID)
