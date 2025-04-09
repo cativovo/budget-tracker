@@ -13,5 +13,7 @@ type Repository interface {
 	CreateExpense(ctx context.Context, e CreateExpenseReq) (Expense, error)
 	CreateExpenseGroup(ctx context.Context, e CreateExpenseGroupReq) (ExpenseGroup, error)
 	UpdateExpense(ctx context.Context, u UpdateExpenseReq) (Expense, error)
+	DeleteExpense(ctx context.Context, id string) error
 	UpdateExpenseGroup(ctx context.Context, u UpdateExpenseGroupReq) (ExpenseGroup, error)
+	DeleteExpenseGroup(ctx context.Context, id string) error
 }
