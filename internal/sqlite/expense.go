@@ -255,7 +255,32 @@ func (er *ExpenseRepository) UpdateExpense(ctx context.Context, e expense.Update
 }
 
 func (er *ExpenseRepository) DeleteExpense(ctx context.Context, id string) error {
-	panic("not yet implemented")
+	u := user.FromContext(ctx)
+	logger := logger.FromContext(ctx)
+
+	db := sqlbuilder.SQLite.NewDeleteBuilder()
+	db.DeleteFrom("expense")
+	db.Where(
+		db.And(
+			db.EQ("id", id),
+			db.EQ("user_id", u.ID),
+		),
+	)
+
+	q, args := db.Build()
+
+	logger.Infow(
+		"Delete expense",
+		"query", q,
+		"args", args,
+	)
+
+	_, err := er.db.readerWriter.ExecContext(ctx, q, args...)
+	if err != nil {
+		return fmt.Errorf("sqlite.ExpenseRepository.DeleteExpense: ExecContext: %w", err)
+	}
+
+	return nil
 }
 
 func (er *ExpenseRepository) ExpenseGroupByID(ctx context.Context, id string) (expense.ExpenseGroup, error) {

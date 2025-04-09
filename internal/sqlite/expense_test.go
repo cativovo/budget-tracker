@@ -113,7 +113,7 @@ func TestCreateFindExpense(t *testing.T) {
 		ctxWithUser := user.ContextWithUser(ctxWithLogger, user1)
 		foundExpense, err := er.ExpenseByID(ctxWithUser, "123")
 		assert.Equal(t, expense.Expense{}, foundExpense)
-		assert.Equal(t, err, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"))
+		assert.Equal(t, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"), err)
 	})
 
 	t.Run("can't access expense of other user", func(t *testing.T) {
@@ -124,7 +124,7 @@ func TestCreateFindExpense(t *testing.T) {
 		ctxWithUser = user.ContextWithUser(ctxWithLogger, user2)
 		foundExpense, err := er.ExpenseByID(ctxWithUser, createdExpense.ID)
 		assert.Equal(t, expense.Expense{}, foundExpense)
-		assert.Equal(t, err, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"))
+		assert.Equal(t, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"), err)
 	})
 }
 
@@ -140,9 +140,7 @@ func TestUpdateExpense(t *testing.T) {
 
 	user1 := users[0]
 	user1Categories := createCategories(t, dh.db, user1)
-
 	user2 := users[1]
-	_ = user2
 
 	tests := []struct {
 		name    string
@@ -313,7 +311,7 @@ func TestUpdateExpense(t *testing.T) {
 		ctxWithUser := user.ContextWithUser(ctxWithLogger, user1)
 		foundExpense, err := er.UpdateExpense(ctxWithUser, expense.UpdateExpenseReq{ID: "123", Name: toPtr(t, "Foo")})
 		assert.Equal(t, expense.Expense{}, foundExpense)
-		assert.Equal(t, err, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"))
+		assert.Equal(t, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"), err)
 	})
 
 	t.Run("can't update expense of other user", func(t *testing.T) {
@@ -324,7 +322,81 @@ func TestUpdateExpense(t *testing.T) {
 		ctxWithUser = user.ContextWithUser(ctxWithLogger, user2)
 		foundExpense, err := er.UpdateExpense(ctxWithUser, expense.UpdateExpenseReq{ID: createdExpense.ID, Name: toPtr(t, "Foo")})
 		assert.Equal(t, expense.Expense{}, foundExpense)
-		assert.Equal(t, err, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"))
+		assert.Equal(t, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"), err)
+	})
+}
+
+func TestDeleteExpense(t *testing.T) {
+	dh := newDBHelper(t, "test_delete_expense.db")
+	defer dh.clean()
+
+	cr := sqlite.NewCategoryRepository(dh.db)
+	er := sqlite.NewExpenseRepository(dh.db, cr)
+	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
+
+	users := createUsers(t, dh.db)
+
+	user1 := users[0]
+	user1Categories := createCategories(t, dh.db, user1)
+
+	user2 := users[1]
+	user2Categories := createCategories(t, dh.db, user2)
+
+	tests := []struct {
+		name    string
+		user    user.User
+		expense expense.CreateExpenseReq
+	}{
+		{
+			name: fmt.Sprintf("%s's expense", user1.Name),
+			user: user1,
+			expense: expense.CreateExpenseReq{
+				Name:       "Expense 1",
+				Amount:     6969,
+				Date:       "2006-01-02",
+				CategoryID: user1Categories[0].ID,
+				Note:       "Expense 1 Note",
+			},
+		},
+		{
+			name: fmt.Sprintf("%s's expense", user2.Name),
+			user: user2,
+			expense: expense.CreateExpenseReq{
+				Name:       "Expense 1",
+				Amount:     6969,
+				Date:       "2006-01-02",
+				CategoryID: user2Categories[0].ID,
+				Note:       "Expense 1 Note",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctxWithUser := user.ContextWithUser(ctxWithLogger, test.user)
+			createdExpense, err := er.CreateExpense(ctxWithUser, test.expense)
+			assert.Nil(t, err)
+
+			err = er.DeleteExpense(ctxWithUser, createdExpense.ID)
+			assert.Nil(t, err)
+
+			_, err = er.ExpenseByID(ctxWithUser, createdExpense.ID)
+			assert.Equal(t, err, internal.NewError(internal.ErrorCodeNotFound, "Expense not found"))
+		})
+	}
+
+	t.Run("can't delete expense of other user", func(t *testing.T) {
+		ctxWithUser1 := user.ContextWithUser(ctxWithLogger, user1)
+		createdExpense, err := er.CreateExpense(ctxWithUser1, tests[0].expense)
+		assert.Nil(t, err)
+
+		ctxWithUser2 := user.ContextWithUser(ctxWithLogger, user2)
+		err = er.DeleteExpense(ctxWithUser2, createdExpense.ID)
+		assert.Nil(t, err)
+
+		foundExpense, err := er.ExpenseByID(ctxWithUser1, createdExpense.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, createdExpense, foundExpense)
 	})
 }
 
