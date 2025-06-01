@@ -11,7 +11,11 @@ import (
 
 func main() {
 	logger := zap.Must(zap.NewProduction()).Sugar()
-	defer logger.Sync()
+	defer func() {
+		if err := logger.Sync(); err != nil {
+			panic(err)
+		}
+	}()
 
 	cfg, err := config.LoadConfig(logger)
 	if err != nil {
