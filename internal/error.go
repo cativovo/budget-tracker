@@ -5,20 +5,29 @@ import (
 	"fmt"
 )
 
+// ErrorCode identifies the error
 type ErrorCode string
 
 const (
-	ErrorCodeInvalid  ErrorCode = "invalid"
+	// ErrorCodeUnauthenticated indicates an unauthenticated error
+	ErrorCodeUnauthenticated ErrorCode = "unauthenticated"
+	// ErrorCodeInvalid indicates an invalid request error
+	ErrorCodeInvalid ErrorCode = "invalid"
+	// ErrorCodeNotFound indicates a resource not found error
 	ErrorCodeNotFound ErrorCode = "not_found"
+	// ErrorCodeConflict indicates a conflict error
 	ErrorCodeConflict ErrorCode = "conflict"
+	// ErrorCodeInternal indicates a internal server error
 	ErrorCodeInternal ErrorCode = "internal"
 )
 
+// Error represents the application-specific error
 type Error struct {
 	code    ErrorCode
 	message string
 }
 
+// NewError creates new Error
 func NewError(e ErrorCode, m string) *Error {
 	return &Error{
 		code:    e,
@@ -26,6 +35,8 @@ func NewError(e ErrorCode, m string) *Error {
 	}
 }
 
+// NewErrorf creates new Error with message
+// formatted according to a format specifier
 func NewErrorf(e ErrorCode, format string, args ...any) *Error {
 	return &Error{
 		code:    e,
@@ -33,11 +44,17 @@ func NewErrorf(e ErrorCode, format string, args ...any) *Error {
 	}
 }
 
+// Error implements error interface
 func (e *Error) Error() string {
-	return fmt.Sprintf("internal error: code=%s, message=%s", e.code, e.message)
+	return fmt.Sprintf("code: %s, message: %s", e.code, e.message)
 }
 
+// GetErrorMessage extracts message from Error
 func GetErrorMessage(err error) string {
+	if err == nil {
+		return "Internal server error"
+	}
+
 	var e *Error
 	if errors.As(err, &e) {
 		return e.message
@@ -45,6 +62,7 @@ func GetErrorMessage(err error) string {
 	return err.Error()
 }
 
+// GetErrorCode extracts ErrorCode from Error
 func GetErrorCode(err error) ErrorCode {
 	var e *Error
 	if errors.As(err, &e) {

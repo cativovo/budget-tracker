@@ -3,35 +3,33 @@ package sqlite
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/cativovo/budget-tracker/internal"
-	"github.com/cativovo/budget-tracker/internal/category"
-	"github.com/cativovo/budget-tracker/internal/logger"
-	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/huandu/go-sqlbuilder"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/zap"
 )
 
-type CategoryRepository struct {
+type CategoryService struct {
 	db *DB
 }
 
-var _ category.Repository = (*CategoryRepository)(nil)
+var _ internal.CategoryService = (*CategoryService)(nil)
 
-func NewCategoryRepository(db *DB) CategoryRepository {
-	return CategoryRepository{
+func NewCategoryService(db *DB) *CategoryService {
+	return &CategoryService{
 		db: db,
 	}
 }
 
-func (cr *CategoryRepository) CategoryByID(ctx context.Context, id string) (category.Category, error) {
-	u := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+func (cs *CategoryService) FindCategories(ctx context.Context, f internal.CategoryFilter) ([]internal.Category, int, error) {
+	user := internal.UserFromContext(ctx)
+	logger := internal.LoggerFromContext(ctx)
 
-	sb := sqlbuilder.SQLite.NewSelectBuilder()
-	sb.Select(
+	fsb := sqlbuilder.SQLite.NewSelectBuilder()
+	fsb.Select(
 		"id",
 		"name",
 		"color",
@@ -39,91 +37,68 @@ func (cr *CategoryRepository) CategoryByID(ctx context.Context, id string) (cate
 		"created_at",
 		"updated_at",
 	)
-	sb.From("category")
-	sb.Where(
-		sb.And(
-			sb.EQ("id", id),
-			sb.EQ("user_id", u.ID),
-		),
-	)
+	fsb.From("category")
+	fsb.Where(fsb.EQ("user_id", user.ID))
 
-	q, args := sb.Build()
-
-	logger.Infow(
-		"Find category by id",
-		"query", q,
-		"args", args,
-	)
-
-	var dst categoryDst
-	if err := cr.db.reader.GetContext(ctx, &dst, q, args...); err != nil {
-		if err == sql.ErrNoRows {
-			return category.Category{}, internal.NewError(internal.ErrorCodeNotFound, "Category not found")
-		}
-
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.CategoryByID: GetContext: %w", err)
+	if f.Name != nil {
+		// SQLite doesn't support ILIKE
+		fsb.Where(fsb.Like("LOWER(name)", "%"+*f.Name+"%"))
 	}
 
-	return category.Category(dst), nil
-}
+	fsb.OrderBy("updated_at")
+	fsb.Limit(f.Limit)
+	fsb.Offset(f.Offset)
 
-func (cr *CategoryRepository) ListCategories(ctx context.Context, o internal.ListOptions) ([]category.Category, error) {
-	u := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+	q, args := fsb.Build()
 
-	sb := sqlbuilder.SQLite.NewSelectBuilder()
-	sb.Select(
-		"id",
-		"name",
-		"color",
-		"icon",
-		"created_at",
-		"updated_at",
-	)
-	sb.From("category")
-	sb.Where(
-		sb.EQ(
-			"user_id",
-			u.ID,
-		),
-	)
-	sb.Limit(o.Limit)
-	sb.Offset(o.Offset)
+	logger.Infow("Find categories", "query", q, "args", args)
 
-	q, args := sb.Build()
-
-	logger.Infow(
-		"List category",
-		"query", q,
-		"args", args,
-	)
-
-	rows, err := cr.db.reader.QueryxContext(ctx, q, args...)
+	rows, err := cs.db.reader.QueryxContext(ctx, q, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil
+			return nil, 0, nil
 		}
 
-		return nil, fmt.Errorf("sqlite.CategoryRepository.ListCategories: QueryxContext: %w", err)
+		return nil, 0, fmt.Errorf("sqlite: find categories: %w", err)
 	}
 
-	var result []category.Category
+	defer func() {
+		if err := rows.Close(); err != nil {
+			logger.Error("Failed to close the rows", zap.Error(err))
+		}
+	}()
+
+	categories := make([]internal.Category, 0)
 	for rows.Next() {
 		var dst categoryDst
 		err := rows.StructScan(&dst)
 		if err != nil {
-			return nil, fmt.Errorf("sqlite.CategoryRepository.ListCategories: StructScan: %w", err)
+			return nil, 0, fmt.Errorf("sqlite: scan category: %w", err)
 		}
 
-		result = append(result, category.Category(dst))
+		categories = append(categories, internal.Category(dst))
 	}
 
-	return result, nil
+	csb := sqlbuilder.SQLite.NewSelectBuilder()
+	csb.Select(csb.As("COUNT(id)", "total"))
+	csb.From("category")
+	csb.WhereClause = fsb.WhereClause
+
+	q, args = csb.Build()
+
+	logger.Infow("Count categories", "query", q, "args", args)
+
+	var total int
+	if err := cs.db.reader.GetContext(ctx, &total, q, args...); err != nil {
+		return nil, 0, fmt.Errorf("sqlite: count categories: %w", err)
+	}
+
+	return categories, total, nil
 }
 
-func (cr *CategoryRepository) categoryByName(ctx context.Context, name string) (category.Category, error) {
-	u := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+func (cs *CategoryService) GetCategory(ctx context.Context, id string) (internal.Category, error) {
+	user := internal.UserFromContext(ctx)
+	logger := internal.LoggerFromContext(ctx)
 
 	sb := sqlbuilder.SQLite.NewSelectBuilder()
 	sb.Select(
@@ -136,54 +111,55 @@ func (cr *CategoryRepository) categoryByName(ctx context.Context, name string) (
 	)
 	sb.From("category")
 	sb.Where(
-		sb.And(
-			sb.EQ("name", name),
-			sb.EQ("user_id", u.ID),
-		),
+		sb.EQ("id", id),
+		sb.EQ("user_id", user.ID),
 	)
 
 	q, args := sb.Build()
 
-	logger.Infow(
-		"Count category by name",
-		"query", q,
-		"args", args,
-	)
+	logger.Infow("Get category", "query", q, "args", args)
 
 	var dst categoryDst
-	if err := cr.db.reader.GetContext(ctx, &dst, q, args...); err != nil {
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.categoryByName: GetContext: %w", err)
+	if err := cs.db.reader.GetContext(ctx, &dst, q, args...); err != nil {
+		if err == sql.ErrNoRows {
+			iErr := internal.NewError(internal.ErrorCodeNotFound, "Category not found")
+			return internal.Category{}, fmt.Errorf("sqlite: %w", iErr)
+		}
+
+		return internal.Category{}, fmt.Errorf("sqlite: get category: %w", err)
 	}
 
-	return category.Category(dst), nil
+	return internal.Category(dst), nil
 }
 
-func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.CreateCategoryReq) (category.Category, error) {
-	_, err := cr.categoryByName(ctx, c.Name)
-	if err != nil && !errors.Is(err, sql.ErrNoRows) {
-		return category.Category{}, err
-	}
-	if err == nil {
-		return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", c.Name)
+func (cs *CategoryService) CreateCategory(ctx context.Context, c internal.CategoryCreate) (internal.Category, error) {
+	if err := c.Validate(); err != nil {
+		return internal.Category{}, err
 	}
 
-	u := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+	tx, err := cs.db.writer.BeginTxx(ctx, nil)
+	if err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: create category begin tx: %w", err)
+	}
+
+	logger := internal.LoggerFromContext(ctx)
+
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			logger.Error("Failed to rollback", zap.Error(err))
+		}
+	}()
+
+	if err := validateCategory(ctx, tx, c.Name); err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: validate create category: %w", err)
+	}
+
+	user := internal.UserFromContext(ctx)
 
 	ib := sqlbuilder.SQLite.NewInsertBuilder()
 	ib.InsertInto("category")
-	ib.Cols(
-		"name",
-		"color",
-		"icon",
-		"user_id",
-	)
-	ib.Values(
-		c.Name,
-		c.Color,
-		c.Icon,
-		u.ID,
-	)
+	ib.Cols("name", "color", "icon", "user_id")
+	ib.Values(c.Name, c.Color, c.Icon, user.ID)
 	ib.Returning(
 		"id",
 		"name",
@@ -195,102 +171,98 @@ func (cr *CategoryRepository) CreateCategory(ctx context.Context, c category.Cre
 
 	q, args := ib.Build()
 
-	logger.Infow(
-		"Insert category",
-		"query", q,
-		"args", args,
-	)
+	logger.Infow("Insert category", "query", q, "args", args)
 
 	var dst categoryDst
-	if err := cr.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.CreateCategory: GetContext: %w", err)
+	if err := tx.GetContext(ctx, &dst, q, args...); err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: create category: %w", err)
 	}
 
-	return category.Category(dst), nil
+	if err := tx.Commit(); err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: create category commit: %w", err)
+	}
+
+	return internal.Category(dst), nil
 }
 
-func (cr *CategoryRepository) UpdateCategory(ctx context.Context, c category.UpdateCategoryReq) (category.Category, error) {
-	if c.Name != nil {
-		found, err := cr.categoryByName(ctx, *c.Name)
-		if err != nil && !errors.Is(err, sql.ErrNoRows) {
-			return category.Category{}, err
+func (cs *CategoryService) UpdateCategory(ctx context.Context, u internal.CategoryUpdate) (internal.Category, error) {
+	if err := u.Validate(); err != nil {
+		return internal.Category{}, err
+	}
+
+	tx, err := cs.db.writer.BeginTxx(ctx, nil)
+	if err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: update category begin tx: %w", err)
+	}
+
+	logger := internal.LoggerFromContext(ctx)
+
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			logger.Error("Failed to rollback", zap.Error(err))
 		}
-		if err == nil && found.ID != c.ID {
-			return category.Category{}, internal.NewErrorf(internal.ErrorCodeConflict, "%s category already exists", *c.Name)
+	}()
+
+	if u.Name != nil {
+		if err := validateCategory(ctx, tx, *u.Name); err != nil {
+			return internal.Category{}, fmt.Errorf("sqlite: validate update: %w", err)
 		}
 	}
 
-	u := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+	user := internal.UserFromContext(ctx)
 
 	ub := sqlbuilder.SQLite.NewUpdateBuilder()
 	ub.Update("category")
 
-	if c.Name != nil {
-		ub.SetMore(ub.Assign("name", c.Name))
-	}
-	if c.Color != nil {
-		ub.SetMore(ub.Assign("color", c.Color))
-	}
-	if c.Icon != nil {
-		ub.SetMore(ub.Assign("icon", c.Icon))
-	}
+	setMoreIfNotNil(ub, "name", u.Name)
+	setMoreIfNotNil(ub, "color", u.Color)
+	setMoreIfNotNil(ub, "icon", u.Icon)
 
 	ub.Where(
-		ub.And(
-			ub.EQ("id", c.ID),
-			ub.EQ("user_id", u.ID),
-		),
+		ub.Equal("id", u.ID),
+		ub.Equal("user_id", user.ID),
 	)
+
 	// https://github.com/huandu/go-sqlbuilder/issues/142
-	ub.SQL("RETURNING name, color, icon, created_at, updated_at")
+	ub.SQL("RETURNING id, name, color, icon, created_at, updated_at")
 
 	q, args := ub.Build()
 
-	logger.Infow(
-		"Update category",
-		"query", q,
-		"args", args,
-	)
+	logger.Infow("Update category", "query", q, "args", args)
 
 	var dst categoryDst
-	if err := cr.db.readerWriter.GetContext(ctx, &dst, q, args...); err != nil {
+	if err := tx.GetContext(ctx, &dst, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			return category.Category{}, internal.NewError(internal.ErrorCodeNotFound, "Category not found")
+			iErr := internal.NewError(internal.ErrorCodeNotFound, "Category not found")
+			return internal.Category{}, fmt.Errorf("sqlite: %w", iErr)
 		}
-
-		return category.Category{}, fmt.Errorf("sqlite.CategoryRepository.UpdateCategory: %w", err)
+		return internal.Category{}, fmt.Errorf("sqlite: update category: %w", err)
 	}
 
-	dst.ID = c.ID
+	if err := tx.Commit(); err != nil {
+		return internal.Category{}, fmt.Errorf("sqlite: update category commit: %w", err)
+	}
 
-	return category.Category(dst), nil
+	return internal.Category(dst), nil
 }
 
-func (cr *CategoryRepository) DeleteCategory(ctx context.Context, id string) error {
-	user := user.FromContext(ctx)
-	logger := logger.FromContext(ctx)
+func (cs *CategoryService) DeleteCategory(ctx context.Context, id string) error {
+	user := internal.UserFromContext(ctx)
+	logger := internal.LoggerFromContext(ctx)
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("category")
 	db.Where(
-		db.And(
-			db.EQ("id", id),
-			db.EQ("user_id", user.ID),
-		),
+		db.EQ("id", id),
+		db.EQ("user_id", user.ID),
 	)
 
 	q, args := db.Build()
 
-	logger.Infow(
-		"Delete category",
-		"query", q,
-		"args", args,
-	)
+	logger.Infow("Delete category", "query", q, "args", args)
 
-	_, err := cr.db.readerWriter.ExecContext(ctx, q, args...)
-	if err != nil {
-		return fmt.Errorf("sqlite.CategoryRepository.DeleteCategory: ExecContext: %w", err)
+	if _, err := cs.db.writer.ExecContext(ctx, q, args...); err != nil {
+		return fmt.Errorf("sqlite: delete category: %w", err)
 	}
 
 	return nil
@@ -303,4 +275,45 @@ type categoryDst struct {
 	Icon      string    `db:"icon"`
 	CreatedAt time.Time `db:"created_at"`
 	UpdatedAt time.Time `db:"updated_at"`
+}
+
+func validateCategory(ctx context.Context, tx *sqlx.Tx, name string) error {
+	ok, err := categoryExists(ctx, tx, name)
+	if err != nil {
+		return err
+	}
+	if ok {
+		return internal.NewError(internal.ErrorCodeConflict, "Category already exists")
+	}
+	return nil
+}
+
+func categoryExists(ctx context.Context, tx *sqlx.Tx, name string) (bool, error) {
+	user := internal.UserFromContext(ctx)
+	logger := internal.LoggerFromContext(ctx)
+
+	categorySb := sqlbuilder.SQLite.NewSelectBuilder()
+	categorySb.Select("1")
+	categorySb.From("category")
+	categorySb.Where(
+		categorySb.EQ("name", name),
+		categorySb.EQ("user_id", user.ID),
+	)
+
+	existsSb := sqlbuilder.SQLite.NewSelectBuilder()
+	existsSb.Select(existsSb.Exists(categorySb))
+
+	q, args := existsSb.Build()
+
+	logger.Infow("Check category existence", "query", q, "args", args)
+
+	var dst bool
+	if err := tx.GetContext(ctx, &dst, q, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
+		return false, fmt.Errorf("category exists: %w", err)
+	}
+
+	return dst, nil
 }

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/cativovo/budget-tracker/internal"
-	"github.com/cativovo/budget-tracker/internal/validator"
+	"github.com/cativovo/budget-tracker/internal/validate"
 )
 
 type Service interface {
@@ -22,10 +22,10 @@ type CreateUserReq struct {
 
 type service struct {
 	r Repository
-	v *validator.Validator
+	v *validate.Validator
 }
 
-func NewService(r Repository, v *validator.Validator) Service {
+func NewService(r Repository, v *validate.Validator) Service {
 	return &service{
 		r: r,
 		v: v,

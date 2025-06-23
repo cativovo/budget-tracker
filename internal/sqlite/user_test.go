@@ -2,165 +2,368 @@ package sqlite_test
 
 import (
 	"context"
+	"fmt"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal"
-	"github.com/cativovo/budget-tracker/internal/logger"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
-	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestCreateUser(t *testing.T) {
-	dh := newDBHelper(t, "test_create_user.db")
-	defer dh.clean()
+	db, c := MustConnectDB(t, "create_user.db")
+	defer c()
 
-	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
+	us := sqlite.NewUserService(db)
+	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	tests := []struct {
+	testCases := []struct {
 		name  string
-		input user.CreateUserReq
-		want  user.User
+		input internal.UserCreate
 		err   error
 	}{
 		{
-			name: "create user",
-			input: user.CreateUserReq{
-				Name:  "Alex Albon",
+			name: "ok 1",
+			input: internal.UserCreate{
 				ID:    "1",
-				Email: "alexalbon@williams.com",
-			},
-			want: user.User{
 				Name:  "Alex Albon",
-				ID:    "1",
 				Email: "alexalbon@williams.com",
 			},
 		},
 		{
-			name: "duplicate user",
-			input: user.CreateUserReq{
-				Name:  "Alex Albon",
-				ID:    "1",
-				Email: "alexalbon@williams.com",
+			name: "ok 2",
+			input: internal.UserCreate{
+				ID:    "2",
+				Name:  "Carlos Sainz",
+				Email: "carlossainz@williams.com",
 			},
-			err: internal.NewError(internal.ErrorCodeConflict, "User already exists"),
+		},
+		{
+			name: "no id",
+			input: internal.UserCreate{
+				Name:  "Isack Hadjar",
+				Email: "isackhadjar@racingbulls.com",
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "id is required"),
+		},
+		{
+			name: "no name",
+			input: internal.UserCreate{
+				ID:    "1",
+				Name:  "",
+				Email: "isackhadjar@racingbulls.com",
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "name is required"),
+		},
+		{
+			name: "no email",
+			input: internal.UserCreate{
+				ID:   "1",
+				Name: "Isack Hadjar",
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+		},
+		{
+			name: "invalid email",
+			input: internal.UserCreate{
+				ID:    "1",
+				Name:  "Isack Hadjar",
+				Email: "isackhadjar",
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
 		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			got, err := ur.CreateUser(ctxWithLogger, test.input)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.err != nil {
+				createdUser, err := us.CreateUser(ctx, tc.input)
+				assert.Equal(t, internal.GetErrorCode(tc.err), internal.GetErrorCode(err))
+				assert.Equal(t, internal.GetErrorMessage(tc.err), internal.GetErrorMessage(err))
 
-			if test.err != nil {
-				assert.NotNil(t, err)
-
-				wantCode := internal.GetErrorCode(test.err)
-				gotCode := internal.GetErrorCode(err)
-				assert.Equal(t, wantCode, gotCode)
-
-				wantMessage := internal.GetErrorMessage(test.err)
-				gotMessage := internal.GetErrorMessage(err)
-				assert.Equal(t, wantMessage, gotMessage)
+				_, err = us.GetUser(ctx, createdUser.ID)
+				assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+				assert.Equal(t, "User not found", internal.GetErrorMessage(err))
 				return
 			}
 
+			createdUser, err := us.CreateUser(ctx, tc.input)
 			assert.Nil(t, err)
-			assert.Equal(t, test.want, got)
+
+			foundUser, err := us.GetUser(ctx, createdUser.ID)
+			assert.Nil(t, err)
+			assert.Equal(t, createdUser, foundUser)
 		})
 	}
+
+	t.Run("validate all fields", func(t *testing.T) {
+		createdUser, err := us.CreateUser(ctx, internal.UserCreate{})
+		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
+
+		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		wantMsgs := []string{
+			"id is required",
+			"name is required",
+			"email is invalid",
+		}
+		sort.Strings(msgs)
+		sort.Strings(wantMsgs)
+		assert.Equal(t, wantMsgs, msgs)
+
+		_, err = us.GetUser(ctx, createdUser.ID)
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+	})
+
+	t.Run("conflict", func(t *testing.T) {
+		mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "9",
+			Name:  "Liam Lawson",
+			Email: "liamlawson@racingbulls.com",
+		})
+
+		createdUser, err := us.CreateUser(ctx, internal.UserCreate{
+			ID:    "10",
+			Name:  "Isack Hadjar",
+			Email: "liamlawson@racingbulls.com",
+		})
+		assert.Equal(t, internal.ErrorCodeConflict, internal.GetErrorCode(err))
+		assert.Equal(t, "email already taken", internal.GetErrorMessage(err))
+
+		_, err = us.GetUser(ctx, createdUser.ID)
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+	})
 }
 
-func TestFindUserByID(t *testing.T) {
-	dh := newDBHelper(t, "test_find_user_by_id.db")
-	defer dh.clean()
+func TestUpdateUser(t *testing.T) {
+	db, c := MustConnectDB(t, "update_user.db")
+	defer c()
 
-	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
+	us := sqlite.NewUserService(db)
+	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	createUsers(t, dh.db)
-
-	tests := map[string]struct {
-		input string
-		want  user.User
-		err   error
+	testCases := []struct {
+		name            string
+		createUserInput internal.UserCreate
+		updateUserInput internal.UserUpdate
+		err             error
 	}{
-		"find smooth operator": {
-			input: "2",
-			want: user.User{
-				ID:    "2",
-				Name:  "Carlos Sainz Jr.",
-				Email: "carlossainzjr@williams.com",
-			},
-		},
-		"find albono": {
-			input: "1",
-			want: user.User{
+		{
+			name: "update name",
+			createUserInput: internal.UserCreate{
 				ID:    "1",
 				Name:  "Alex Albon",
 				Email: "alexalbon@williams.com",
 			},
+			updateUserInput: internal.UserUpdate{
+				Name: ptr("Alex Albono"),
+			},
 		},
-		"user not found": {
-			input: "3",
-			err:   internal.NewError(internal.ErrorCodeNotFound, "User not found"),
+		{
+			name: "update email",
+			createUserInput: internal.UserCreate{
+				ID:    "2",
+				Name:  "Carlos Sainz",
+				Email: "carlossainz@ferrari.com",
+			},
+			updateUserInput: internal.UserUpdate{
+				Email: ptr("carlossainz@williams.com"),
+			},
+		},
+		{
+			name: "empty name",
+			createUserInput: internal.UserCreate{
+				ID:    "4",
+				Name:  "Liam Lawson",
+				Email: "liamlawson@racingbulls.com",
+			},
+			updateUserInput: internal.UserUpdate{
+				Name: ptr(""),
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "name is required"),
+		},
+		{
+			name: "empty email",
+			createUserInput: internal.UserCreate{
+				ID:    "5",
+				Name:  "Lance Stroll",
+				Email: "lancestroll@astonmartin.com",
+			},
+			updateUserInput: internal.UserUpdate{
+				Email: ptr(""),
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+		},
+		{
+			name: "invalid email",
+			createUserInput: internal.UserCreate{
+				ID:    "6",
+				Name:  "Fernando Alonso",
+				Email: "fernandoalonso@astonmartin.com",
+			},
+			updateUserInput: internal.UserUpdate{
+				Email: ptr("nando@"),
+			},
+			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+		},
+		{
+			name: "no update",
+			createUserInput: internal.UserCreate{
+				ID:    "7",
+				Name:  "Nico Hulkenberg",
+				Email: "nicohulkenberg@audi.com",
+			},
+			updateUserInput: internal.UserUpdate{},
+			err:             internal.NewError(internal.ErrorCodeInvalid, "No update fields provided"),
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			got, err := ur.UserByID(ctxWithLogger, test.input)
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			createdUser := mustCreateUser(ctx, t, db, tc.createUserInput)
+			ctx := internal.ContextWithUser(ctx, createdUser)
 
-			if test.err != nil {
-				assert.NotNil(t, err)
+			if tc.err != nil {
+				_, err := us.UpdateUser(ctx, tc.updateUserInput)
+				assert.Equal(t, internal.GetErrorCode(tc.err), internal.GetErrorCode(err))
+				assert.Equal(t, internal.GetErrorMessage(tc.err), internal.GetErrorMessage(err))
 
-				wantCode := internal.GetErrorCode(test.err)
-				gotCode := internal.GetErrorCode(err)
-				assert.Equal(t, wantCode, gotCode)
-
-				wantMessage := internal.GetErrorMessage(test.err)
-				gotMessage := internal.GetErrorMessage(err)
-				assert.Equal(t, wantMessage, gotMessage)
+				foundUser := mustGetUser(ctx, t, db, createdUser.ID)
+				assert.Equal(t, createdUser, foundUser)
 				return
 			}
 
+			updatedUser, err := us.UpdateUser(ctx, tc.updateUserInput)
 			assert.Nil(t, err)
-			assert.Equal(t, test.want, got)
+			assert.NotEqual(t, createdUser, updatedUser)
+
+			if tc.updateUserInput.Name == nil {
+				assert.Equal(t, createdUser.Name, updatedUser.Name)
+			}
+
+			if tc.updateUserInput.Email == nil {
+				assert.Equal(t, createdUser.Email, updatedUser.Email)
+			}
+
+			foundUser := mustGetUser(ctx, t, db, updatedUser.ID)
+			assert.Equal(t, updatedUser, foundUser)
 		})
 	}
+
+	t.Run("validate all fields", func(t *testing.T) {
+		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "8",
+			Name:  "Gabriel Bortoleto",
+			Email: "gabrielbortoleto@audi.com",
+		})
+		ctx := internal.ContextWithUser(ctx, createdUser)
+		_, err := us.UpdateUser(ctx, internal.UserUpdate{
+			Name:  ptr(""),
+			Email: ptr("test"),
+		})
+		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
+
+		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		wantMsgs := []string{
+			"name is required",
+			"email is invalid",
+		}
+		sort.Strings(msgs)
+		sort.Strings(wantMsgs)
+		assert.Equal(t, wantMsgs, msgs)
+	})
+
+	t.Run("conflict", func(t *testing.T) {
+		mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "9",
+			Name:  "Oliver Bearman",
+			Email: "oliverbearman@haas.com",
+		})
+		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "10",
+			Name:  "Esteban Ocon",
+			Email: "estebanocon@haas.com",
+		})
+		ctx := internal.ContextWithUser(ctx, createdUser)
+		_, err := us.UpdateUser(ctx, internal.UserUpdate{
+			Email: ptr("oliverbearman@haas.com"),
+		})
+		assert.Equal(t, internal.ErrorCodeConflict, internal.GetErrorCode(err))
+		assert.Equal(t, "email already taken", internal.GetErrorMessage(err))
+
+		foundUser := mustGetUser(ctx, t, db, createdUser.ID)
+		assert.Equal(t, createdUser, foundUser)
+	})
+
+	t.Run("not found", func(t *testing.T) {
+		ctx := internal.ContextWithUser(ctx, internal.User{ID: "69"})
+		_, err := us.UpdateUser(ctx, internal.UserUpdate{
+			Email: ptr("test@test.com"),
+		})
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+	})
 }
 
 func TestDeleteUser(t *testing.T) {
-	dh := newDBHelper(t, "delete_user.db")
-	defer dh.clean()
+	db, c := MustConnectDB(t, "delete_user.db")
+	defer c()
 
-	ur := sqlite.NewUserRepository(dh.db)
-	ctxWithLogger := logger.ContextWithLogger(context.Background(), zapLogger)
+	us := sqlite.NewUserService(db)
+	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	createUsers(t, dh.db)
-
-	tests := map[string]struct {
-		input string
-	}{
-		"delete albono": {
-			input: "1",
+	testCases := []internal.UserCreate{
+		{
+			ID:    "1",
+			Name:  "Alex Albon",
+			Email: "alexalbon@williams.com",
 		},
-		"delete smooth operator": {
-			input: "2",
-		},
-		"user doesn't exist": {
-			input: "3",
+		{
+			ID:    "2",
+			Name:  "Carlos Sainz",
+			Email: "carlossainz@williams.com",
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			err := ur.DeleteUser(ctxWithLogger, test.input)
+	for _, tc := range testCases {
+		t.Run(fmt.Sprintf("delete user %s", tc.ID), func(t *testing.T) {
+			createdUser := mustCreateUser(ctx, t, db, tc)
+			ctx := internal.ContextWithUser(ctx, createdUser)
+			err := us.DeleteUser(ctx)
 			assert.Nil(t, err)
 
-			_, err = ur.UserByID(ctxWithLogger, test.input)
+			_, err = us.GetUser(ctx, createdUser.ID)
 			assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
 			assert.Equal(t, "User not found", internal.GetErrorMessage(err))
 		})
 	}
+
+	t.Run("not found", func(t *testing.T) {
+		ctx := internal.ContextWithUser(ctx, internal.User{ID: "69"})
+		err := us.DeleteUser(ctx)
+		assert.Nil(t, err)
+	})
+}
+
+func mustCreateUser(ctx context.Context, t *testing.T, db *sqlite.DB, c internal.UserCreate) internal.User {
+	t.Helper()
+
+	us := sqlite.NewUserService(db)
+	u, err := us.CreateUser(ctx, c)
+	require.Nil(t, err)
+	return u
+}
+
+func mustGetUser(ctx context.Context, t *testing.T, db *sqlite.DB, id string) internal.User {
+	t.Helper()
+
+	us := sqlite.NewUserService(db)
+	u, err := us.GetUser(ctx, id)
+	require.Nil(t, err)
+	return u
 }
