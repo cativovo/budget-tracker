@@ -2,41 +2,41 @@ package sqlite_test
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal/sqlite"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-func TestBuildPragmaQuery(t *testing.T) {
-	pragmas := []string{
-		"busy_timeout(10000)",
-		"journal_mode(WAL)",
-		"journal_size_limit(200000000)",
-		"synchronous(NORMAL)",
-		"foreign_keys(ON)",
-		"temp_store(MEMORY)",
-		"cache_size(-16000)",
-	}
-	// https://github.com/pocketbase/pocketbase/blob/391287451729ac2f62a4ca596bb923042b76c213/core/db_connect.go#L14
-	want := "?_pragma=busy_timeout(10000)&_pragma=journal_mode(WAL)&_pragma=journal_size_limit(200000000)&_pragma=synchronous(NORMAL)&_pragma=foreign_keys(ON)&_pragma=temp_store(MEMORY)&_pragma=cache_size(-16000)"
-	got := sqlite.BuildPragmaQuery(pragmas)
-
-	assert.Equal(t, want, got)
-}
-
-func TestDB(t *testing.T) {
-	_, c := MustConnectDB(t, "db.db")
+func TestReader(t *testing.T) {
+	db, c := mustConnectDB(t)
 	defer c()
+
+	assertPragmas(t, db.Reader)
+
+	_, err := db.Reader.Exec("INSERT INTO user (id, name, email) VALUES ('1', 'test', 'test@test.com')")
+	assert.Error(t, err)
 }
 
-func MustConnectDB(t *testing.T, dbPath string) (*sqlite.DB, func()) {
+func TestWriter(t *testing.T) {
+	db, c := mustConnectDB(t)
+	defer c()
+
+	assertPragmas(t, db.Writer)
+
+	_, err := db.Writer.Exec("INSERT INTO user (id, name, email) VALUES ('1', 'test', 'test@test.com')")
+	assert.Nil(t, err)
+}
+
+func mustConnectDB(t *testing.T) (*sqlite.DB, func()) {
 	t.Helper()
 
-	tmp, err := os.CreateTemp("", dbPath)
+	tmp, err := os.CreateTemp("", "")
 	require.Nil(t, err)
 
 	ctx := context.Background()
@@ -47,9 +47,40 @@ func MustConnectDB(t *testing.T, dbPath string) (*sqlite.DB, func()) {
 	require.Nil(t, err)
 
 	c := func() {
-		err := os.Remove(tmp.Name())
+		n := tmp.Name()
+
+		err := os.Remove(n)
+		require.Nil(nil, err)
+
+		err = os.Remove(fmt.Sprintf("%s-shm", n))
+		require.Nil(nil, err)
+
+		err = os.Remove(fmt.Sprintf("%s-wal", n))
 		require.Nil(nil, err)
 	}
 
 	return db, c
+}
+
+func assertPragmas(t *testing.T, db *sqlx.DB) {
+	t.Helper()
+
+	wantMap := map[string]string{
+		"busy_timeout":       "10000",     // returns integer as string
+		"journal_mode":       "wal",       // returns lowercase string
+		"journal_size_limit": "200000000", // returns integer as string
+		"synchronous":        "1",         // returns 1 (NORMAL)
+		"foreign_keys":       "1",         // returns 1 (ON)
+		"temp_store":         "2",         // returns 2 (MEMORY)
+		"cache_size":         "-16000",    // returns integer as string
+	}
+
+	for k, want := range wantMap {
+		var dst string
+		if err := db.Get(&dst, fmt.Sprintf("PRAGMA %s", k)); err != nil {
+			t.Error(err)
+		}
+
+		assert.Equal(t, want, dst)
+	}
 }

@@ -9,8 +9,7 @@ import (
 
 	"github.com/cativovo/budget-tracker/internal"
 	"github.com/huandu/go-sqlbuilder"
-	"modernc.org/sqlite"
-	sqlite3 "modernc.org/sqlite/lib"
+	"github.com/mattn/go-sqlite3"
 )
 
 type UserService struct {
@@ -27,7 +26,7 @@ func NewUserService(db *DB) *UserService {
 
 func (us *UserService) GetUser(ctx context.Context, id string) (internal.User, error) {
 	if id == "" {
-		iErr := internal.NewError(internal.ErrorCodeNotFound, "User not found")
+		iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
 		return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
 	}
 
@@ -42,9 +41,9 @@ func (us *UserService) GetUser(ctx context.Context, id string) (internal.User, e
 	logger.Infow("Get user", "query", q, "args", args)
 
 	var dst userDst
-	if err := us.db.reader.GetContext(ctx, &dst, q, args...); err != nil {
+	if err := us.db.Reader.GetContext(ctx, &dst, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			iErr := internal.NewError(internal.ErrorCodeNotFound, "User not found")
+			iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
 			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
 		}
 
@@ -72,9 +71,9 @@ func (us *UserService) CreateUser(ctx context.Context, c internal.UserCreate) (i
 	logger.Infow("Insert user", "query", q, "args", args)
 
 	var dst userDst
-	if err := us.db.writer.GetContext(ctx, &dst, q, args...); err != nil {
-		var sqErr *sqlite.Error
-		if errors.As(err, &sqErr) && sqErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE {
+	if err := us.db.Writer.GetContext(ctx, &dst, q, args...); err != nil {
+		var sqErr sqlite3.Error
+		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			iErr := internal.NewError(internal.ErrorCodeConflict, "email already taken")
 			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
 		}
@@ -97,6 +96,7 @@ func (us *UserService) UpdateUser(ctx context.Context, u internal.UserUpdate) (i
 
 	setMoreIfNotNil(ub, "name", u.Name)
 	setMoreIfNotNil(ub, "email", u.Email)
+	setUpdatedAt(ub)
 
 	ub.Where(ub.Equal("id", user.ID))
 	// https://github.com/huandu/go-sqlbuilder/issues/142
@@ -107,14 +107,14 @@ func (us *UserService) UpdateUser(ctx context.Context, u internal.UserUpdate) (i
 	logger.Infow("Update user", "query", q, "args", args)
 
 	var dst userDst
-	if err := us.db.writer.GetContext(ctx, &dst, q, args...); err != nil {
+	if err := us.db.Writer.GetContext(ctx, &dst, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			iErr := internal.NewError(internal.ErrorCodeNotFound, "User not found")
+			iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
 			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
 		}
 
-		var sqErr *sqlite.Error
-		if errors.As(err, &sqErr) && sqErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE {
+		var sqErr sqlite3.Error
+		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			iErr := internal.NewError(internal.ErrorCodeConflict, "email already taken")
 			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
 		}
@@ -141,7 +141,8 @@ func (us *UserService) DeleteUser(ctx context.Context) error {
 		"args", args,
 	)
 
-	if _, err := us.db.writer.ExecContext(ctx, q, args...); err != nil {
+	_, err := us.db.Writer.ExecContext(ctx, q, args...)
+	if err != nil {
 		return fmt.Errorf("sqlite: delete user: %w", err)
 	}
 

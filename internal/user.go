@@ -34,6 +34,7 @@ func (c UserCreate) Validate() error {
 	return nil
 }
 
+// Doesn't accept ID because it's using the User from ctx
 type UserUpdate struct {
 	// https://github.com/go-playground/validator/issues/1308
 	Name  *string `json:"name" validate:"omitnil,min=1"`

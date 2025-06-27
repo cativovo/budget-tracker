@@ -15,7 +15,7 @@ type Category struct {
 }
 
 type CategoryService interface {
-	FindCategories(ctx context.Context, f CategoryFilter) ([]Category, int, error)
+	ListCategories(ctx context.Context, f CategoryFilter) ([]Category, int, error)
 	GetCategory(ctx context.Context, id string) (Category, error)
 	CreateCategory(ctx context.Context, c CategoryCreate) (Category, error)
 	UpdateCategory(ctx context.Context, u CategoryUpdate) (Category, error)

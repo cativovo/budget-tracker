@@ -49,7 +49,7 @@ func getMessage(v any, err validator.FieldError) string {
 	case "required":
 		return fmt.Sprintf("%s is required", err.Field())
 	case "email":
-		return fmt.Sprintf("%s is invalid", err.Field())
+		return fmt.Sprintf("invalid %s", err.Field())
 	case "required_with":
 		if field, ok := reflect.TypeOf(v).Elem().FieldByName(err.Param()); ok {
 			if jsonTag, ok := field.Tag.Lookup("json"); ok {
@@ -62,7 +62,7 @@ func getMessage(v any, err validator.FieldError) string {
 	case "hexcolor":
 		return fmt.Sprintf("%s must have a valid hex color value", err.Field())
 	case "datetime":
-		return fmt.Sprintf("%s must have a valid date value", err.Field())
+		return fmt.Sprintf("invalid %s", err.Field())
 	case "gte":
 		return fmt.Sprintf("%s must be greater than or equal to %s", err.Field(), err.Param())
 	case "gt":

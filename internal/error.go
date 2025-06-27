@@ -51,10 +51,6 @@ func (e *Error) Error() string {
 
 // GetErrorMessage extracts message from Error
 func GetErrorMessage(err error) string {
-	if err == nil {
-		return "Internal server error"
-	}
-
 	var e *Error
 	if errors.As(err, &e) {
 		return e.message

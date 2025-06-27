@@ -9,3 +9,7 @@ func setMoreIfNotNil[T any](ub *sqlbuilder.UpdateBuilder, f string, v *T) {
 		ub.SetMore(ub.Assign(f, v))
 	}
 }
+
+func setUpdatedAt(ub *sqlbuilder.UpdateBuilder) {
+	ub.SetMore(ub.Assign("updated_at", sqlbuilder.Raw("CURRENT_TIMESTAMP")))
+}

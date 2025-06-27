@@ -2,10 +2,10 @@ package sqlite_test
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cativovo/budget-tracker/internal"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
@@ -15,7 +15,7 @@ import (
 )
 
 func TestCreateUser(t *testing.T) {
-	db, c := MustConnectDB(t, "create_user.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	us := sqlite.NewUserService(db)
@@ -65,7 +65,7 @@ func TestCreateUser(t *testing.T) {
 				ID:   "1",
 				Name: "Isack Hadjar",
 			},
-			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+			err: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
 		},
 		{
 			name: "invalid email",
@@ -74,7 +74,7 @@ func TestCreateUser(t *testing.T) {
 				Name:  "Isack Hadjar",
 				Email: "isackhadjar",
 			},
-			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+			err: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
 		},
 	}
 
@@ -87,12 +87,17 @@ func TestCreateUser(t *testing.T) {
 
 				_, err = us.GetUser(ctx, createdUser.ID)
 				assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-				assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+				assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 				return
 			}
 
 			createdUser, err := us.CreateUser(ctx, tc.input)
 			assert.Nil(t, err)
+			assert.Equal(t, tc.input.ID, createdUser.ID)
+			assert.Equal(t, tc.input.Name, createdUser.Name)
+			assert.Equal(t, tc.input.Email, createdUser.Email)
+			assert.WithinDuration(t, time.Now(), createdUser.CreatedAt, wantDelta)
+			assert.WithinDuration(t, time.Now(), createdUser.UpdatedAt, wantDelta)
 
 			foundUser, err := us.GetUser(ctx, createdUser.ID)
 			assert.Nil(t, err)
@@ -104,19 +109,19 @@ func TestCreateUser(t *testing.T) {
 		createdUser, err := us.CreateUser(ctx, internal.UserCreate{})
 		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
 
-		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		gotMsgs := strings.Split(internal.GetErrorMessage(err), ", ")
 		wantMsgs := []string{
 			"id is required",
 			"name is required",
-			"email is invalid",
+			"invalid email",
 		}
-		sort.Strings(msgs)
+		sort.Strings(gotMsgs)
 		sort.Strings(wantMsgs)
-		assert.Equal(t, wantMsgs, msgs)
+		assert.Equal(t, wantMsgs, gotMsgs)
 
 		_, err = us.GetUser(ctx, createdUser.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 	})
 
 	t.Run("conflict", func(t *testing.T) {
@@ -136,12 +141,12 @@ func TestCreateUser(t *testing.T) {
 
 		_, err = us.GetUser(ctx, createdUser.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 	})
 }
 
 func TestUpdateUser(t *testing.T) {
-	db, c := MustConnectDB(t, "update_user.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	us := sqlite.NewUserService(db)
@@ -176,6 +181,18 @@ func TestUpdateUser(t *testing.T) {
 			},
 		},
 		{
+			name: "update all",
+			createUserInput: internal.UserCreate{
+				ID:    "3",
+				Name:  "Logans Sargeant",
+				Email: "loganssargeant@ferrari.com",
+			},
+			updateUserInput: internal.UserUpdate{
+				Name:  ptr("Logan Sargeant"),
+				Email: ptr("logansargeant@ferrari.com"),
+			},
+		},
+		{
 			name: "empty name",
 			createUserInput: internal.UserCreate{
 				ID:    "4",
@@ -197,7 +214,7 @@ func TestUpdateUser(t *testing.T) {
 			updateUserInput: internal.UserUpdate{
 				Email: ptr(""),
 			},
-			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+			err: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
 		},
 		{
 			name: "invalid email",
@@ -209,7 +226,7 @@ func TestUpdateUser(t *testing.T) {
 			updateUserInput: internal.UserUpdate{
 				Email: ptr("nando@"),
 			},
-			err: internal.NewError(internal.ErrorCodeInvalid, "email is invalid"),
+			err: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
 		},
 		{
 			name: "no update",
@@ -242,18 +259,40 @@ func TestUpdateUser(t *testing.T) {
 			assert.Nil(t, err)
 			assert.NotEqual(t, createdUser, updatedUser)
 
-			if tc.updateUserInput.Name == nil {
-				assert.Equal(t, createdUser.Name, updatedUser.Name)
-			}
+			assertUpdatedField(t, tc.updateUserInput.Name, createdUser.Name, updatedUser.Name)
+			assertUpdatedField(t, tc.updateUserInput.Email, createdUser.Email, updatedUser.Email)
+			assert.Equal(t, createdUser.CreatedAt, updatedUser.UpdatedAt)
 
-			if tc.updateUserInput.Email == nil {
-				assert.Equal(t, createdUser.Email, updatedUser.Email)
-			}
+			// TODO: find a way to test UpdatedAt field without slowing down the tests
+			// it's too fast that the UpdatedAt is still the same with CreatedAt
 
 			foundUser := mustGetUser(ctx, t, db, updatedUser.ID)
 			assert.Equal(t, updatedUser, foundUser)
 		})
 	}
+
+	t.Run("update correct user", func(t *testing.T) {
+		createdUser1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "9",
+			Name:  "Oliver Bearman",
+			Email: "oliverbearman@haas.com",
+		})
+		createdUser2 := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "10",
+			Name:  "Esteban Ocon",
+			Email: "estebanocon@haas.com",
+		})
+
+		ctx := internal.ContextWithUser(ctx, createdUser1)
+		updatedUser, err := us.UpdateUser(ctx, internal.UserUpdate{
+			Email: ptr("manbearpig@haas.com"),
+		})
+		assert.Nil(t, err)
+		assert.NotEqual(t, createdUser1, updatedUser)
+
+		foundUser := mustGetUser(ctx, t, db, createdUser2.ID)
+		assert.Equal(t, createdUser2, foundUser)
+	})
 
 	t.Run("validate all fields", func(t *testing.T) {
 		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
@@ -268,30 +307,30 @@ func TestUpdateUser(t *testing.T) {
 		})
 		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
 
-		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		gotMsgs := strings.Split(internal.GetErrorMessage(err), ", ")
 		wantMsgs := []string{
 			"name is required",
-			"email is invalid",
+			"invalid email",
 		}
-		sort.Strings(msgs)
+		sort.Strings(gotMsgs)
 		sort.Strings(wantMsgs)
-		assert.Equal(t, wantMsgs, msgs)
+		assert.Equal(t, wantMsgs, gotMsgs)
 	})
 
 	t.Run("conflict", func(t *testing.T) {
 		mustCreateUser(ctx, t, db, internal.UserCreate{
-			ID:    "9",
-			Name:  "Oliver Bearman",
-			Email: "oliverbearman@haas.com",
+			ID:    "M-1",
+			Name:  "George Russell",
+			Email: "georgerussel@mercedes.com",
 		})
 		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
-			ID:    "10",
-			Name:  "Esteban Ocon",
-			Email: "estebanocon@haas.com",
+			ID:    "M-2",
+			Name:  "Andrea Kimi Antonelli",
+			Email: "andreakimiantonelli@mercedes.com",
 		})
 		ctx := internal.ContextWithUser(ctx, createdUser)
 		_, err := us.UpdateUser(ctx, internal.UserUpdate{
-			Email: ptr("oliverbearman@haas.com"),
+			Email: ptr("georgerussel@mercedes.com"),
 		})
 		assert.Equal(t, internal.ErrorCodeConflict, internal.GetErrorCode(err))
 		assert.Equal(t, "email already taken", internal.GetErrorMessage(err))
@@ -306,42 +345,41 @@ func TestUpdateUser(t *testing.T) {
 			Email: ptr("test@test.com"),
 		})
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "User not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 	})
 }
 
 func TestDeleteUser(t *testing.T) {
-	db, c := MustConnectDB(t, "delete_user.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	us := sqlite.NewUserService(db)
 	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	testCases := []internal.UserCreate{
-		{
+	t.Run("delete correct user", func(t *testing.T) {
+		createdUser1 := mustCreateUser(ctx, t, db, internal.UserCreate{
 			ID:    "1",
 			Name:  "Alex Albon",
 			Email: "alexalbon@williams.com",
-		},
-		{
+		})
+		createdUser2 := mustCreateUser(ctx, t, db, internal.UserCreate{
 			ID:    "2",
 			Name:  "Carlos Sainz",
 			Email: "carlossainz@williams.com",
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(fmt.Sprintf("delete user %s", tc.ID), func(t *testing.T) {
-			createdUser := mustCreateUser(ctx, t, db, tc)
-			ctx := internal.ContextWithUser(ctx, createdUser)
-			err := us.DeleteUser(ctx)
-			assert.Nil(t, err)
-
-			_, err = us.GetUser(ctx, createdUser.ID)
-			assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-			assert.Equal(t, "User not found", internal.GetErrorMessage(err))
 		})
-	}
+
+		ctx := internal.ContextWithUser(ctx, createdUser1)
+		err := us.DeleteUser(ctx)
+		assert.Nil(t, err)
+
+		_, err = us.GetUser(ctx, createdUser1.ID)
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
+
+		gotUser, err := us.GetUser(ctx, createdUser2.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, createdUser2, gotUser)
+	})
 
 	t.Run("not found", func(t *testing.T) {
 		ctx := internal.ContextWithUser(ctx, internal.User{ID: "69"})

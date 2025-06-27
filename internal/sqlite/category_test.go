@@ -16,21 +16,16 @@ import (
 )
 
 func TestCreateCategory(t *testing.T) {
-	db, c := MustConnectDB(t, "create_category.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	cs := sqlite.NewCategoryService(db)
 	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	user1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+	user := mustCreateUser(ctx, t, db, internal.UserCreate{
 		ID:    "1",
 		Name:  "Charles Leclerc",
 		Email: "charlesleclerc@ferrari.com",
-	})
-	user2 := mustCreateUser(ctx, t, db, internal.UserCreate{
-		ID:    "2",
-		Name:  "Lewis Hamilton",
-		Email: "lewishamilton@ferrari.com",
 	})
 
 	testCases := []struct {
@@ -40,8 +35,8 @@ func TestCreateCategory(t *testing.T) {
 		err   error
 	}{
 		{
-			name: "ok 1",
-			user: user1,
+			name: "ok",
+			user: user,
 			input: internal.CategoryCreate{
 				Name:  "Water",
 				Color: "#EF1A2D",
@@ -49,17 +44,8 @@ func TestCreateCategory(t *testing.T) {
 			},
 		},
 		{
-			name: "ok 2",
-			user: user2,
-			input: internal.CategoryCreate{
-				Name:  "Cars",
-				Color: "#FFF200",
-				Icon:  "button",
-			},
-		},
-		{
 			name: "no name",
-			user: user2,
+			user: user,
 			input: internal.CategoryCreate{
 				Color: "#EF1A2D",
 				Icon:  "test",
@@ -68,7 +54,7 @@ func TestCreateCategory(t *testing.T) {
 		},
 		{
 			name: "no color",
-			user: user1,
+			user: user,
 			input: internal.CategoryCreate{
 				Name: "test",
 				Icon: "test",
@@ -77,7 +63,7 @@ func TestCreateCategory(t *testing.T) {
 		},
 		{
 			name: "invalid color",
-			user: user1,
+			user: user,
 			input: internal.CategoryCreate{
 				Name:  "test",
 				Color: "test",
@@ -87,7 +73,7 @@ func TestCreateCategory(t *testing.T) {
 		},
 		{
 			name: "No icon",
-			user: user2,
+			user: user,
 			input: internal.CategoryCreate{
 				Name:  "test",
 				Color: "#FFF200",
@@ -107,21 +93,18 @@ func TestCreateCategory(t *testing.T) {
 
 				_, err = cs.GetCategory(ctx, createdCategory.ID)
 				assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-				assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+				assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 				return
 			}
 
 			createdCategory, err := cs.CreateCategory(ctx, tc.input)
 			assert.Nil(t, err)
-			assert.True(t, createdCategory.ID != "")
+			assert.NotEqual(t, "", createdCategory.ID)
 			assert.Equal(t, tc.input.Name, createdCategory.Name)
 			assert.Equal(t, tc.input.Color, createdCategory.Color)
 			assert.Equal(t, tc.input.Icon, createdCategory.Icon)
-
-			now := time.Now()
-			delta := time.Second * 5
-			assert.WithinDuration(t, now, createdCategory.CreatedAt, delta)
-			assert.WithinDuration(t, now, createdCategory.UpdatedAt, delta)
+			assert.WithinDuration(t, time.Now(), createdCategory.CreatedAt, wantDelta)
+			assert.WithinDuration(t, time.Now(), createdCategory.UpdatedAt, wantDelta)
 
 			gotCategory, err := cs.GetCategory(ctx, createdCategory.ID)
 			assert.Nil(t, err)
@@ -130,23 +113,23 @@ func TestCreateCategory(t *testing.T) {
 	}
 
 	t.Run("validate all fields", func(t *testing.T) {
-		ctx := internal.ContextWithUser(ctx, user1)
+		ctx := internal.ContextWithUser(ctx, user)
 		createdCategory, err := cs.CreateCategory(ctx, internal.CategoryCreate{})
 		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
 
-		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		gotMsgs := strings.Split(internal.GetErrorMessage(err), ", ")
 		wantMsgs := []string{
 			"name is required",
 			"color must have a valid hex color value",
 			"icon is required",
 		}
-		sort.Strings(msgs)
+		sort.Strings(gotMsgs)
 		sort.Strings(wantMsgs)
-		assert.Equal(t, wantMsgs, msgs)
+		assert.Equal(t, wantMsgs, gotMsgs)
 
 		_, err = cs.GetCategory(ctx, createdCategory.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 	})
 
 	t.Run("conflict", func(t *testing.T) {
@@ -155,7 +138,7 @@ func TestCreateCategory(t *testing.T) {
 			Color: "#FFFFFF",
 			Icon:  "test",
 		}
-		ctx := internal.ContextWithUser(ctx, user1)
+		ctx := internal.ContextWithUser(ctx, user)
 
 		_, err := cs.CreateCategory(ctx, input)
 		assert.Nil(t, err)
@@ -166,40 +149,40 @@ func TestCreateCategory(t *testing.T) {
 
 		_, err = cs.GetCategory(ctx, createdCategory.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 	})
 
 	t.Run("invalid access", func(t *testing.T) {
-		ctx1 := internal.ContextWithUser(ctx, user1)
+		ctx1 := internal.ContextWithUser(ctx, user)
 		createdCategory := mustCreateCategory(ctx1, t, db, internal.CategoryCreate{
 			Name:  "Media",
 			Color: "#000000",
 			Icon:  "media",
 		})
 
-		ctx2 := internal.ContextWithUser(ctx, user2)
+		someUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "2",
+			Name:  "Lewis Hamilton",
+			Email: "lewishamilton@ferrari.com",
+		})
+		ctx2 := internal.ContextWithUser(ctx, someUser)
 		_, err := cs.GetCategory(ctx2, createdCategory.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 	})
 }
 
 func TestUpdateCategory(t *testing.T) {
-	db, c := MustConnectDB(t, "update_category.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	cs := sqlite.NewCategoryService(db)
 	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	user1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+	user := mustCreateUser(ctx, t, db, internal.UserCreate{
 		ID:    "1",
 		Name:  "Charles Leclerc",
 		Email: "charlesleclerc@ferrari.com",
-	})
-	user2 := mustCreateUser(ctx, t, db, internal.UserCreate{
-		ID:    "2",
-		Name:  "Lewis Hamilton",
-		Email: "lewishamilton@ferrari.com",
 	})
 
 	testCases := []struct {
@@ -211,7 +194,7 @@ func TestUpdateCategory(t *testing.T) {
 	}{
 		{
 			name: "update name",
-			user: user1,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
 				Name:  "Category1",
 				Color: "#FFFFFF",
@@ -223,7 +206,7 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "update color",
-			user: user2,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
 				Name:  "Category2",
 				Color: "#EF1A2D",
@@ -235,7 +218,7 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "update icon",
-			user: user2,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
 				Name:  "Category3",
 				Color: "#EF1A2D",
@@ -247,7 +230,7 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "update all",
-			user: user1,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
 				Name:  "Category4",
 				Color: "#EF1A2D",
@@ -261,7 +244,7 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "empty name",
-			user: user2,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
 				Name:  "Category5",
 				Color: "#FFF200",
@@ -274,9 +257,9 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "invalid color",
-			user: user1,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
-				Name:  "Category5",
+				Name:  "Category6",
 				Color: "#FFF200",
 				Icon:  "icon",
 			},
@@ -287,9 +270,9 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "empty icon",
-			user: user2,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
-				Name:  "Category6",
+				Name:  "Category7",
 				Color: "#FFF200",
 				Icon:  "icon",
 			},
@@ -300,9 +283,9 @@ func TestUpdateCategory(t *testing.T) {
 		},
 		{
 			name: "no update",
-			user: user1,
+			user: user,
 			categoryCreate: internal.CategoryCreate{
-				Name:  "Category7",
+				Name:  "Category8",
 				Color: "#FFF200",
 				Icon:  "icon",
 			},
@@ -329,12 +312,42 @@ func TestUpdateCategory(t *testing.T) {
 
 			updatedCategory, err := cs.UpdateCategory(ctx, tc.categoryUpdate)
 			assert.Nil(t, err)
-			assert.NotEqual(t, createdCategory, updatedCategory)
+			assertUpdatedField(t, tc.categoryUpdate.Name, createdCategory.Name, updatedCategory.Name)
+			assertUpdatedField(t, tc.categoryUpdate.Color, createdCategory.Color, updatedCategory.Color)
+			assertUpdatedField(t, tc.categoryUpdate.Icon, createdCategory.Icon, updatedCategory.Icon)
+			assert.Equal(t, createdCategory.CreatedAt, updatedCategory.CreatedAt)
+
+			// TODO: find a way to test UpdatedAt field without slowing down the tests
+			// it's too fast that the UpdatedAt is still the same with CreatedAt
 
 			gotCategory := mustGetCategory(ctx, t, db, createdCategory.ID)
 			assert.Equal(t, updatedCategory, gotCategory)
 		})
 	}
+
+	t.Run("update correct category", func(t *testing.T) {
+		ctx := internal.ContextWithUser(ctx, user)
+		createdCategory1 := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
+			Name:  "Update correct category 1",
+			Color: "#FFFFFF",
+			Icon:  "icon",
+		})
+		createdCategory2 := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
+			Name:  "Update correct category 2",
+			Color: "#FFFFFF",
+			Icon:  "icon",
+		})
+
+		updatedCategory, err := cs.UpdateCategory(ctx, internal.CategoryUpdate{
+			ID:   createdCategory1.ID,
+			Name: ptr("Update correct category 1 - ok"),
+		})
+		assert.Nil(t, err)
+		assert.NotEqual(t, createdCategory1, updatedCategory)
+
+		gotCategory := mustGetCategory(ctx, t, db, createdCategory2.ID)
+		assert.Equal(t, createdCategory2, gotCategory)
+	})
 
 	t.Run("no id", func(t *testing.T) {
 		_, err := cs.UpdateCategory(ctx, internal.CategoryUpdate{
@@ -354,146 +367,142 @@ func TestUpdateCategory(t *testing.T) {
 			Icon:  ptr(""),
 		})
 
-		msgs := strings.Split(internal.GetErrorMessage(err), ", ")
+		gotMsgs := strings.Split(internal.GetErrorMessage(err), ", ")
 		wantMsgs := []string{
 			"id is required",
 			"name is required",
 			"color must have a valid hex color value",
 			"icon is required",
 		}
-		sort.Strings(msgs)
+		sort.Strings(gotMsgs)
 		sort.Strings(wantMsgs)
-		assert.Equal(t, wantMsgs, msgs)
+		assert.Equal(t, wantMsgs, gotMsgs)
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		ctx := internal.ContextWithUser(ctx, user1)
+		ctx := internal.ContextWithUser(ctx, user)
+		mustCreateCategory(ctx, t, db, internal.CategoryCreate{
+			Name:  "Conflict Category 1",
+			Color: "#FFFFFF",
+			Icon:  "icon",
+		})
+
 		createdCategory := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
-			Name:  "Category9",
+			Name:  "Conflict Category 2",
 			Color: "#FFFFFF",
 			Icon:  "icon",
 		})
 
 		_, err := cs.UpdateCategory(ctx, internal.CategoryUpdate{
 			ID:   createdCategory.ID,
-			Name: ptr("Category9"),
+			Name: ptr("Conflict Category 1"),
 		})
 		assert.Equal(t, internal.ErrorCodeConflict, internal.GetErrorCode(err))
 		assert.Equal(t, "Category already exists", internal.GetErrorMessage(err))
 	})
 
 	t.Run("invalid access", func(t *testing.T) {
-		ctx1 := internal.ContextWithUser(ctx, user1)
+		ctx1 := internal.ContextWithUser(ctx, user)
 		createdCategory := mustCreateCategory(ctx1, t, db, internal.CategoryCreate{
 			Name:  "Category of user1",
 			Color: "#FFFFFF",
 			Icon:  "icon",
 		})
 
-		ctx2 := internal.ContextWithUser(ctx, user2)
+		someUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "2",
+			Name:  "Lewis Hamilton",
+			Email: "lewishamilton@ferrari.com",
+		})
+		ctx2 := internal.ContextWithUser(ctx, someUser)
 		_, err := cs.UpdateCategory(ctx2, internal.CategoryUpdate{
 			ID:   createdCategory.ID,
 			Name: ptr("Category of user2"),
 		})
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 
 		gotCategory := mustGetCategory(ctx1, t, db, createdCategory.ID)
 		assert.Equal(t, createdCategory, gotCategory)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := internal.ContextWithUser(ctx, user1)
+		ctx := internal.ContextWithUser(ctx, user)
 		_, err := cs.UpdateCategory(ctx, internal.CategoryUpdate{
 			ID:   "6969",
 			Name: ptr("Test"),
 		})
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-		assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
 	})
 }
 
 func TestDeleteCategory(t *testing.T) {
-	db, c := MustConnectDB(t, "delete_category.db")
+	db, c := mustConnectDB(t)
 	defer c()
 
 	cs := sqlite.NewCategoryService(db)
 	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
-	user1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+	user := mustCreateUser(ctx, t, db, internal.UserCreate{
 		ID:    "1",
 		Name:  "Charles Leclerc",
 		Email: "charlesleclerc@ferrari.com",
 	})
-	user2 := mustCreateUser(ctx, t, db, internal.UserCreate{
-		ID:    "2",
-		Name:  "Lewis Hamilton",
-		Email: "lewishamilton@ferrari.com",
+	ctx = internal.ContextWithUser(ctx, user)
+
+	t.Run("delete correct category", func(t *testing.T) {
+		createdCategory1 := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
+			Name:  "Food",
+			Color: "#FFFFFF",
+			Icon:  "icon1",
+		})
+		createdCategory2 := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
+			Name:  "Drinks",
+			Color: "#000000",
+			Icon:  "icon2",
+		})
+
+		err := cs.DeleteCategory(ctx, createdCategory1.ID)
+		assert.Nil(t, err)
+
+		_, err = cs.GetCategory(ctx, createdCategory1.ID)
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
+		assert.Equal(t, "category not found", internal.GetErrorMessage(err))
+
+		gotCategory, err := cs.GetCategory(ctx, createdCategory2.ID)
+		assert.Nil(t, err)
+		assert.Equal(t, createdCategory2, gotCategory)
 	})
 
-	testCases := []struct {
-		name           string
-		user           internal.User
-		categoryCreate internal.CategoryCreate
-	}{
-		{
-			name: "ok 1",
-			user: user1,
-			categoryCreate: internal.CategoryCreate{
-				Name:  "Water",
-				Color: "#EF1A2D",
-				Icon:  "water",
-			},
-		},
-		{
-			name: "ok 2",
-			user: user2,
-			categoryCreate: internal.CategoryCreate{
-				Name:  "Cars",
-				Color: "#FFF200",
-				Icon:  "button",
-			},
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			ctx := internal.ContextWithUser(ctx, tc.user)
-			createdCategory := mustCreateCategory(ctx, t, db, tc.categoryCreate)
-
-			err := cs.DeleteCategory(ctx, createdCategory.ID)
-			assert.Nil(t, err)
-
-			_, err = cs.GetCategory(ctx, createdCategory.ID)
-			assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
-			assert.Equal(t, "Category not found", internal.GetErrorMessage(err))
-		})
-	}
-
 	t.Run("invalid access", func(t *testing.T) {
-		ctx1 := internal.ContextWithUser(ctx, user1)
-		createdCategory := mustCreateCategory(ctx1, t, db, internal.CategoryCreate{
+		createdCategory := mustCreateCategory(ctx, t, db, internal.CategoryCreate{
 			Name:  "Some category",
 			Color: "#FFFFFF",
 			Icon:  "icon",
 		})
 
-		ctx2 := internal.ContextWithUser(ctx, user2)
+		someUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+			ID:    "2",
+			Name:  "Lewis Hamilton",
+			Email: "lewishamilton@ferrari.com",
+		})
+		ctx2 := internal.ContextWithUser(internal.ContextWithUser(ctx, someUser), someUser)
 		err := cs.DeleteCategory(ctx2, createdCategory.ID)
 		assert.Nil(t, err)
 
-		gotCategory := mustGetCategory(ctx1, t, db, createdCategory.ID)
+		gotCategory := mustGetCategory(ctx, t, db, createdCategory.ID)
 		assert.Equal(t, createdCategory, gotCategory)
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		err := cs.DeleteCategory(internal.ContextWithUser(ctx, user1), "6969")
+		err := cs.DeleteCategory(internal.ContextWithUser(ctx, user), "6969")
 		assert.Nil(t, err)
 	})
 }
 
-func TestListCategory(t *testing.T) {
-	db, c := MustConnectDB(t, "list_category.db")
+func TestListCategories(t *testing.T) {
+	db, c := mustConnectDB(t)
 	defer c()
 
 	cs := sqlite.NewCategoryService(db)
@@ -521,7 +530,7 @@ func TestListCategory(t *testing.T) {
 
 	t.Run("limit", func(t *testing.T) {
 		ctx1 := internal.ContextWithUser(ctx, user)
-		categories, total, err := cs.FindCategories(ctx1, internal.CategoryFilter{
+		categories, total, err := cs.ListCategories(ctx1, internal.CategoryFilter{
 			Limit: 20,
 		})
 		assert.Nil(t, err)
@@ -536,7 +545,7 @@ func TestListCategory(t *testing.T) {
 	t.Run("offset", func(t *testing.T) {
 		ctx1 := internal.ContextWithUser(ctx, user)
 		offset := 10
-		categories, total, err := cs.FindCategories(ctx1, internal.CategoryFilter{
+		categories, total, err := cs.ListCategories(ctx1, internal.CategoryFilter{
 			Offset: offset,
 			Limit:  10,
 		})
@@ -552,7 +561,7 @@ func TestListCategory(t *testing.T) {
 
 	t.Run("filter by 'category1'", func(t *testing.T) {
 		ctx1 := internal.ContextWithUser(ctx, user)
-		categories, total, err := cs.FindCategories(ctx1, internal.CategoryFilter{
+		categories, total, err := cs.ListCategories(ctx1, internal.CategoryFilter{
 			Name:  ptr("category1"),
 			Limit: 10,
 		})
@@ -569,7 +578,7 @@ func TestListCategory(t *testing.T) {
 
 	t.Run("filter by 'cateGory15'", func(t *testing.T) {
 		ctx1 := internal.ContextWithUser(ctx, user)
-		categories, total, err := cs.FindCategories(ctx1, internal.CategoryFilter{
+		categories, total, err := cs.ListCategories(ctx1, internal.CategoryFilter{
 			Name:  ptr("cateGory15"),
 			Limit: 10,
 		})
@@ -582,7 +591,7 @@ func TestListCategory(t *testing.T) {
 
 	t.Run("filter by 'water'", func(t *testing.T) {
 		ctx1 := internal.ContextWithUser(ctx, user)
-		categories, total, err := cs.FindCategories(ctx1, internal.CategoryFilter{
+		categories, total, err := cs.ListCategories(ctx1, internal.CategoryFilter{
 			Name:  ptr("water"),
 			Limit: 10,
 		})
