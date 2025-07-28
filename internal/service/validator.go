@@ -1,4 +1,4 @@
-package internal
+package service
 
 import (
 	"errors"
@@ -25,8 +25,7 @@ func init() {
 	})
 }
 
-// ValidateStruct validates struct using go-playground/validator
-func ValidateStruct(s any) error {
+func validateStruct(s any) error {
 	if err := v.Struct(s); err != nil {
 		vErrs, ok := err.(validator.ValidationErrors)
 		if !ok {
