@@ -23,6 +23,9 @@ func NewUserService(us userStore) *UserService {
 }
 
 func (us *UserService) GetUser(ctx context.Context, id string) (domain.User, error) {
+	if id == "" {
+		return domain.User{}, internal.NewError(internal.ErrorCodeInvalid, "id is required")
+	}
 	return us.userStore.GetUser(ctx, id)
 }
 
