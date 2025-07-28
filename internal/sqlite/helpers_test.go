@@ -9,10 +9,6 @@ import (
 
 var wantDelta = time.Second * 2
 
-func ptr[T any](v T) *T {
-	return &v
-}
-
 func assertUpdatedField[T any](t *testing.T, f *T, before, after T) {
 	t.Helper()
 

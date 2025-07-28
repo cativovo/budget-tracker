@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal/ctxvalue"
-	"github.com/cativovo/budget-tracker/internal/domain"
+	"github.com/cativovo/budget-tracker/internal/model"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSetAndGetUserFromContext(t *testing.T) {
-	u := domain.User{
+	u := model.User{
 		ID:    "123",
 		Name:  "Yuki Tsunoda",
 		Email: "yukitsonoda@redbull.com",
