@@ -91,10 +91,11 @@ func setPragmas(ctx context.Context, db *sqlx.DB) error {
 
 func connectDB(ctx context.Context, dbPath string, readonly bool) (*sqlx.DB, error) {
 	q := make(url.Values)
-	q.Set("_txlock", "immediate")
 
 	if readonly {
 		q.Set("mode", "ro")
+	} else {
+		q.Set("_txlock", "immediate")
 	}
 
 	dsn := fmt.Sprintf("file:%s?%s", dbPath, q.Encode())

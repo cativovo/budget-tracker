@@ -2,7 +2,7 @@ package sqlite_test
 
 import (
 	"context"
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -19,7 +19,7 @@ func TestCreateUser(t *testing.T) {
 	defer c()
 
 	us := sqlite.NewUserService(db)
-	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
+	sharedCtx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
 	testCases := []struct {
 		name  string
@@ -81,17 +81,17 @@ func TestCreateUser(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.err != nil {
-				createdUser, err := us.CreateUser(ctx, tc.input)
+				createdUser, err := us.CreateUser(sharedCtx, tc.input)
 				assert.Equal(t, internal.GetErrorCode(tc.err), internal.GetErrorCode(err))
 				assert.Equal(t, internal.GetErrorMessage(tc.err), internal.GetErrorMessage(err))
 
-				_, err = us.GetUser(ctx, createdUser.ID)
+				_, err = us.GetUser(sharedCtx, createdUser.ID)
 				assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
 				assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 				return
 			}
 
-			createdUser, err := us.CreateUser(ctx, tc.input)
+			createdUser, err := us.CreateUser(sharedCtx, tc.input)
 			assert.Nil(t, err)
 			assert.Equal(t, tc.input.ID, createdUser.ID)
 			assert.Equal(t, tc.input.Name, createdUser.Name)
@@ -99,14 +99,14 @@ func TestCreateUser(t *testing.T) {
 			assert.WithinDuration(t, time.Now(), createdUser.CreatedAt, wantDelta)
 			assert.WithinDuration(t, time.Now(), createdUser.UpdatedAt, wantDelta)
 
-			foundUser, err := us.GetUser(ctx, createdUser.ID)
+			foundUser, err := us.GetUser(sharedCtx, createdUser.ID)
 			assert.Nil(t, err)
 			assert.Equal(t, createdUser, foundUser)
 		})
 	}
 
 	t.Run("validate all fields", func(t *testing.T) {
-		createdUser, err := us.CreateUser(ctx, internal.UserCreate{})
+		createdUser, err := us.CreateUser(sharedCtx, internal.UserCreate{})
 		assert.Equal(t, internal.ErrorCodeInvalid, internal.GetErrorCode(err))
 
 		gotMsgs := strings.Split(internal.GetErrorMessage(err), ", ")
@@ -115,23 +115,23 @@ func TestCreateUser(t *testing.T) {
 			"name is required",
 			"invalid email",
 		}
-		sort.Strings(gotMsgs)
-		sort.Strings(wantMsgs)
+		slices.Sort(gotMsgs)
+		slices.Sort(wantMsgs)
 		assert.Equal(t, wantMsgs, gotMsgs)
 
-		_, err = us.GetUser(ctx, createdUser.ID)
+		_, err = us.GetUser(sharedCtx, createdUser.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
 		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		mustCreateUser(ctx, t, db, internal.UserCreate{
+		mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "9",
 			Name:  "Liam Lawson",
 			Email: "liamlawson@racingbulls.com",
 		})
 
-		createdUser, err := us.CreateUser(ctx, internal.UserCreate{
+		createdUser, err := us.CreateUser(sharedCtx, internal.UserCreate{
 			ID:    "10",
 			Name:  "Isack Hadjar",
 			Email: "liamlawson@racingbulls.com",
@@ -139,7 +139,7 @@ func TestCreateUser(t *testing.T) {
 		assert.Equal(t, internal.ErrorCodeConflict, internal.GetErrorCode(err))
 		assert.Equal(t, "email already taken", internal.GetErrorMessage(err))
 
-		_, err = us.GetUser(ctx, createdUser.ID)
+		_, err = us.GetUser(sharedCtx, createdUser.ID)
 		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(err))
 		assert.Equal(t, "user not found", internal.GetErrorMessage(err))
 	})
@@ -150,7 +150,7 @@ func TestUpdateUser(t *testing.T) {
 	defer c()
 
 	us := sqlite.NewUserService(db)
-	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
+	sharedCtx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
 	testCases := []struct {
 		name            string
@@ -236,14 +236,14 @@ func TestUpdateUser(t *testing.T) {
 				Email: "nicohulkenberg@audi.com",
 			},
 			updateUserInput: internal.UserUpdate{},
-			err:             internal.NewError(internal.ErrorCodeInvalid, "No update fields provided"),
+			err:             internal.NewError(internal.ErrorCodeInvalid, "no update fields provided"),
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			createdUser := mustCreateUser(ctx, t, db, tc.createUserInput)
-			ctx := internal.ContextWithUser(ctx, createdUser)
+			createdUser := mustCreateUser(sharedCtx, t, db, tc.createUserInput)
+			ctx := internal.ContextWithUser(sharedCtx, createdUser)
 
 			if tc.err != nil {
 				_, err := us.UpdateUser(ctx, tc.updateUserInput)
@@ -272,18 +272,18 @@ func TestUpdateUser(t *testing.T) {
 	}
 
 	t.Run("update correct user", func(t *testing.T) {
-		createdUser1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser1 := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "9",
 			Name:  "Oliver Bearman",
 			Email: "oliverbearman@haas.com",
 		})
-		createdUser2 := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser2 := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "10",
 			Name:  "Esteban Ocon",
 			Email: "estebanocon@haas.com",
 		})
 
-		ctx := internal.ContextWithUser(ctx, createdUser1)
+		ctx := internal.ContextWithUser(sharedCtx, createdUser1)
 		updatedUser, err := us.UpdateUser(ctx, internal.UserUpdate{
 			Email: ptr("manbearpig@haas.com"),
 		})
@@ -295,12 +295,12 @@ func TestUpdateUser(t *testing.T) {
 	})
 
 	t.Run("validate all fields", func(t *testing.T) {
-		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "8",
 			Name:  "Gabriel Bortoleto",
 			Email: "gabrielbortoleto@audi.com",
 		})
-		ctx := internal.ContextWithUser(ctx, createdUser)
+		ctx := internal.ContextWithUser(sharedCtx, createdUser)
 		_, err := us.UpdateUser(ctx, internal.UserUpdate{
 			Name:  ptr(""),
 			Email: ptr("test"),
@@ -312,23 +312,23 @@ func TestUpdateUser(t *testing.T) {
 			"name is required",
 			"invalid email",
 		}
-		sort.Strings(gotMsgs)
-		sort.Strings(wantMsgs)
+		slices.Sort(gotMsgs)
+		slices.Sort(wantMsgs)
 		assert.Equal(t, wantMsgs, gotMsgs)
 	})
 
 	t.Run("conflict", func(t *testing.T) {
-		mustCreateUser(ctx, t, db, internal.UserCreate{
+		mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "M-1",
 			Name:  "George Russell",
 			Email: "georgerussel@mercedes.com",
 		})
-		createdUser := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "M-2",
 			Name:  "Andrea Kimi Antonelli",
 			Email: "andreakimiantonelli@mercedes.com",
 		})
-		ctx := internal.ContextWithUser(ctx, createdUser)
+		ctx := internal.ContextWithUser(sharedCtx, createdUser)
 		_, err := us.UpdateUser(ctx, internal.UserUpdate{
 			Email: ptr("georgerussel@mercedes.com"),
 		})
@@ -340,7 +340,7 @@ func TestUpdateUser(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := internal.ContextWithUser(ctx, internal.User{ID: "69"})
+		ctx := internal.ContextWithUser(sharedCtx, internal.User{ID: "69"})
 		_, err := us.UpdateUser(ctx, internal.UserUpdate{
 			Email: ptr("test@test.com"),
 		})
@@ -354,21 +354,21 @@ func TestDeleteUser(t *testing.T) {
 	defer c()
 
 	us := sqlite.NewUserService(db)
-	ctx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
+	sharedCtx := internal.ContextWithLogger(context.Background(), zap.NewNop().Sugar())
 
 	t.Run("delete correct user", func(t *testing.T) {
-		createdUser1 := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser1 := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "1",
 			Name:  "Alex Albon",
 			Email: "alexalbon@williams.com",
 		})
-		createdUser2 := mustCreateUser(ctx, t, db, internal.UserCreate{
+		createdUser2 := mustCreateUser(sharedCtx, t, db, internal.UserCreate{
 			ID:    "2",
 			Name:  "Carlos Sainz",
 			Email: "carlossainz@williams.com",
 		})
 
-		ctx := internal.ContextWithUser(ctx, createdUser1)
+		ctx := internal.ContextWithUser(sharedCtx, createdUser1)
 		err := us.DeleteUser(ctx)
 		assert.Nil(t, err)
 
@@ -382,7 +382,7 @@ func TestDeleteUser(t *testing.T) {
 	})
 
 	t.Run("not found", func(t *testing.T) {
-		ctx := internal.ContextWithUser(ctx, internal.User{ID: "69"})
+		ctx := internal.ContextWithUser(sharedCtx, internal.User{ID: "69"})
 		err := us.DeleteUser(ctx)
 		assert.Nil(t, err)
 	})

@@ -43,7 +43,7 @@ type UserUpdate struct {
 
 func (u UserUpdate) Validate() error {
 	if u.Name == nil && u.Email == nil {
-		return NewError(ErrorCodeInvalid, "No update fields provided")
+		return NewError(ErrorCodeInvalid, "no update fields provided")
 	}
 
 	if err := ValidateStruct(u); err != nil {

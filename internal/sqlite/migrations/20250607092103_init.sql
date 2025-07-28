@@ -29,7 +29,8 @@ CREATE TABLE expense_group (
 	date DATE NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE
+	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+	category_id TEXT NOT NULL REFERENCES category(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_expense_group_user_id ON expense_group(user_id);
@@ -44,7 +45,7 @@ CREATE TABLE expense (
 	updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	user_id TEXT NOT NULL REFERENCES user(id) ON DELETE CASCADE,
 	category_id TEXT NOT NULL REFERENCES category(id) ON DELETE CASCADE,
-	expense_group_id TEXT REFERENCES expense_group(id)
+	expense_group_id TEXT REFERENCES expense_group(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_expense_date ON expense(date);

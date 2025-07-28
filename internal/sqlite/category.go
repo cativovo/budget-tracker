@@ -25,6 +25,13 @@ func NewCategoryService(db *DB) *CategoryService {
 }
 
 func (cs *CategoryService) ListCategories(ctx context.Context, f internal.CategoryFilter) ([]internal.Category, int, error) {
+	tx, err := cs.db.Reader.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, 0, fmt.Errorf("sqlite: list categories begin: %w", err)
+	}
+
+	defer tx.Rollback()
+
 	user := internal.UserFromContext(ctx)
 	logger := internal.LoggerFromContext(ctx)
 
@@ -41,8 +48,8 @@ func (cs *CategoryService) ListCategories(ctx context.Context, f internal.Catego
 	fsb.Where(fsb.EQ("user_id", user.ID))
 
 	if f.Name != nil {
-		// SQLite doesn't support ILIKE
-		fsb.Where(fsb.Like("LOWER(name)", "%"+*f.Name+"%"))
+		// `LIKE` in SQLite is case insensitive for ASCII
+		fsb.Where(fsb.Like("name", "%"+*f.Name+"%"))
 	}
 
 	fsb.OrderBy("updated_at")
@@ -52,13 +59,6 @@ func (cs *CategoryService) ListCategories(ctx context.Context, f internal.Catego
 	q, args := fsb.Build()
 
 	logger.Infow("List categories", "query", q, "args", args)
-
-	tx, err := cs.db.Reader.BeginTxx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return nil, 0, fmt.Errorf("sqlite: list categories begin: %w", err)
-	}
-
-	defer tx.Rollback()
 
 	rows, err := tx.QueryxContext(ctx, q, args...)
 	if err != nil {
@@ -196,8 +196,8 @@ func (cs *CategoryService) UpdateCategory(ctx context.Context, u internal.Catego
 	setUpdatedAt(ub)
 
 	ub.Where(
-		ub.Equal("id", u.ID),
-		ub.Equal("user_id", user.ID),
+		ub.EQ("id", u.ID),
+		ub.EQ("user_id", user.ID),
 	)
 
 	// https://github.com/huandu/go-sqlbuilder/issues/142
@@ -210,8 +210,7 @@ func (cs *CategoryService) UpdateCategory(ctx context.Context, u internal.Catego
 	var dst categoryDst
 	if err := tx.GetContext(ctx, &dst, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			iErr := internal.NewError(internal.ErrorCodeNotFound, "category not found")
-			return internal.Category{}, fmt.Errorf("sqlite: %w", iErr)
+			err = internal.NewError(internal.ErrorCodeNotFound, "category not found")
 		}
 		return internal.Category{}, fmt.Errorf("sqlite: update category: %w", err)
 	}
@@ -244,15 +243,6 @@ func (cs *CategoryService) DeleteCategory(ctx context.Context, id string) error 
 	}
 
 	return nil
-}
-
-type categoryDst struct {
-	ID        string    `db:"id"`
-	Name      string    `db:"name"`
-	Color     string    `db:"color"`
-	Icon      string    `db:"icon"`
-	CreatedAt time.Time `db:"created_at"`
-	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func getCategory(ctx context.Context, queryer sqlx.QueryerContext, id string) (internal.Category, error) {
@@ -321,4 +311,13 @@ func categoryExists(ctx context.Context, tx *sqlx.Tx, name string) error {
 	}
 
 	return nil
+}
+
+type categoryDst struct {
+	ID        string    `db:"id"`
+	Name      string    `db:"name"`
+	Color     string    `db:"color"`
+	Icon      string    `db:"icon"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
 }

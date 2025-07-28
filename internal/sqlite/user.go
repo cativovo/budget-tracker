@@ -26,8 +26,8 @@ func NewUserService(db *DB) *UserService {
 
 func (us *UserService) GetUser(ctx context.Context, id string) (internal.User, error) {
 	if id == "" {
-		iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
-		return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
+		err := internal.NewError(internal.ErrorCodeNotFound, "user not found")
+		return internal.User{}, fmt.Errorf("sqlite: get user: %w", err)
 	}
 
 	logger := internal.LoggerFromContext(ctx)
@@ -40,17 +40,15 @@ func (us *UserService) GetUser(ctx context.Context, id string) (internal.User, e
 
 	logger.Infow("Get user", "query", q, "args", args)
 
-	var dst userDst
-	if err := us.db.Reader.GetContext(ctx, &dst, q, args...); err != nil {
+	var dest userDest
+	if err := us.db.Reader.GetContext(ctx, &dest, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
-			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
+			err = internal.NewError(internal.ErrorCodeNotFound, "user not found")
 		}
-
 		return internal.User{}, fmt.Errorf("sqlite: get user: %w", err)
 	}
 
-	return internal.User(dst), nil
+	return internal.User(dest), nil
 }
 
 func (us *UserService) CreateUser(ctx context.Context, c internal.UserCreate) (internal.User, error) {
@@ -70,17 +68,16 @@ func (us *UserService) CreateUser(ctx context.Context, c internal.UserCreate) (i
 
 	logger.Infow("Insert user", "query", q, "args", args)
 
-	var dst userDst
-	if err := us.db.Writer.GetContext(ctx, &dst, q, args...); err != nil {
+	var dest userDest
+	if err := us.db.Writer.GetContext(ctx, &dest, q, args...); err != nil {
 		var sqErr sqlite3.Error
 		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			iErr := internal.NewError(internal.ErrorCodeConflict, "email already taken")
-			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
+			err = internal.NewError(internal.ErrorCodeConflict, "email already taken")
 		}
 		return internal.User{}, fmt.Errorf("sqlite: insert user: %w", err)
 	}
 
-	return internal.User(dst), nil
+	return internal.User(dest), nil
 }
 
 func (us *UserService) UpdateUser(ctx context.Context, u internal.UserUpdate) (internal.User, error) {
@@ -98,7 +95,7 @@ func (us *UserService) UpdateUser(ctx context.Context, u internal.UserUpdate) (i
 	setMoreIfNotNil(ub, "email", u.Email)
 	setUpdatedAt(ub)
 
-	ub.Where(ub.Equal("id", user.ID))
+	ub.Where(ub.EQ("id", user.ID))
 	// https://github.com/huandu/go-sqlbuilder/issues/142
 	ub.SQL("RETURNING id, name, email, created_at, updated_at")
 
@@ -106,23 +103,21 @@ func (us *UserService) UpdateUser(ctx context.Context, u internal.UserUpdate) (i
 
 	logger.Infow("Update user", "query", q, "args", args)
 
-	var dst userDst
-	if err := us.db.Writer.GetContext(ctx, &dst, q, args...); err != nil {
+	var dest userDest
+	if err := us.db.Writer.GetContext(ctx, &dest, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			iErr := internal.NewError(internal.ErrorCodeNotFound, "user not found")
-			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
+			err = internal.NewError(internal.ErrorCodeNotFound, "user not found")
 		}
 
 		var sqErr sqlite3.Error
 		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			iErr := internal.NewError(internal.ErrorCodeConflict, "email already taken")
-			return internal.User{}, fmt.Errorf("sqlite: %w", iErr)
+			err = internal.NewError(internal.ErrorCodeConflict, "email already taken")
 		}
 
 		return internal.User{}, fmt.Errorf("sqlite: update user: %w", err)
 	}
 
-	return internal.User(dst), nil
+	return internal.User(dest), nil
 }
 
 func (us *UserService) DeleteUser(ctx context.Context) error {
@@ -131,7 +126,7 @@ func (us *UserService) DeleteUser(ctx context.Context) error {
 
 	db := sqlbuilder.SQLite.NewDeleteBuilder()
 	db.DeleteFrom("user")
-	db.Where(db.Equal("id", user.ID))
+	db.Where(db.EQ("id", user.ID))
 
 	q, args := db.Build()
 
@@ -149,7 +144,7 @@ func (us *UserService) DeleteUser(ctx context.Context) error {
 	return nil
 }
 
-type userDst struct {
+type userDest struct {
 	ID        string    `db:"id"`
 	Name      string    `db:"name"`
 	Email     string    `db:"email"`
