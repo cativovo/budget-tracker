@@ -2,12 +2,6 @@ ENV_FILE ?= .env.development.local
 include $(ENV_FILE)
 export
 
-seed:
-	go run ./cmd/seed
-
-cleandb:
-	go run ./cmd/seed -c
-
 liveui:
 	pnpm --dir ./ui run dev
 
@@ -29,6 +23,9 @@ test:
 build:
 	pnpm --dir ./ui run build
 	go build -o ./bin/app ./cmd/app
+
+mock:
+	go tool mockery
 
 start:
 	BUDGET_TRACKER_ENV=production ./bin/app

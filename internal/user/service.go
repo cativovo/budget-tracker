@@ -1,0 +1,67 @@
+package user
+
+import (
+	"context"
+
+	"github.com/cativovo/budget-tracker/internal"
+)
+
+type UserService struct {
+	userStore userStore
+}
+
+func NewService(us userStore) *UserService {
+	return &UserService{
+		userStore: us,
+	}
+}
+
+func (us *UserService) GetUser(ctx context.Context, id string) (User, error) {
+	if id == "" {
+		return User{}, internal.NewError(internal.ErrorCodeInvalid, "id is required")
+	}
+	return us.userStore.GetUser(ctx, id)
+}
+
+type UserCreate struct {
+	ID    string `json:"id" validate:"required"`
+	Name  string `json:"name" validate:"required"`
+	Email string `json:"email" validate:"email"`
+}
+
+func (uc UserCreate) validate() error {
+	if err := internal.ValidateStruct(uc); err != nil {
+		return internal.NewError(internal.ErrorCodeInvalid, err.Error())
+	}
+	return nil
+}
+
+func (us *UserService) CreateUser(ctx context.Context, input UserCreate) (User, error) {
+	if err := input.validate(); err != nil {
+		return User{}, err
+	}
+	return us.userStore.CreateUser(ctx, input)
+}
+
+type UserUpdate struct {
+	// https://github.com/go-playground/validator/issues/1308
+	Name  *string `json:"name" validate:"omitnil,min=1"`
+	Email *string `json:"email" validate:"omitnil,email"`
+}
+
+func (uu UserUpdate) validate() error {
+	if err := internal.ValidateStruct(uu); err != nil {
+		return internal.NewError(internal.ErrorCodeInvalid, err.Error())
+	}
+	if uu.Name == nil && uu.Email == nil {
+		return internal.NewError(internal.ErrorCodeInvalid, "no update fields provided")
+	}
+	return nil
+}
+
+func (us *UserService) UpdateUser(ctx context.Context, input UserUpdate) (User, error) {
+	if err := input.validate(); err != nil {
+		return User{}, err
+	}
+	return us.userStore.UpdateUser(ctx, input)
+}

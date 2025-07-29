@@ -1,4 +1,4 @@
-package service
+package internal
 
 import (
 	"errors"
@@ -25,7 +25,7 @@ func init() {
 	})
 }
 
-func validateStruct(s any) error {
+func ValidateStruct(s any) error {
 	if err := v.Struct(s); err != nil {
 		vErrs, ok := err.(validator.ValidationErrors)
 		if !ok {

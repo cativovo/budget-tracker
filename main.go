@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/cativovo/budget-tracker/internal/service"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
+	"github.com/cativovo/budget-tracker/internal/user"
 )
 
 func main() {
@@ -13,6 +13,6 @@ func main() {
 		panic(err)
 	}
 	userStore := sqlite.NewUserStore(db)
-	userService := service.NewUserService(userStore)
+	userService := user.NewService(userStore)
 	_ = userService
 }
