@@ -2,6 +2,7 @@ package user
 
 import "time"
 
+// User represents a user.
 type User struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`

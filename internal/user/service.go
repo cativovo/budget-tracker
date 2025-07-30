@@ -6,16 +6,19 @@ import (
 	"github.com/cativovo/budget-tracker/internal"
 )
 
+// UserService is a service for managing users.
 type UserService struct {
 	userStore userStore
 }
 
+// NewService creates a new UserService.
 func NewService(us userStore) *UserService {
 	return &UserService{
 		userStore: us,
 	}
 }
 
+// GetUser gets a user by id.
 func (us *UserService) GetUser(ctx context.Context, id string) (User, error) {
 	if id == "" {
 		return User{}, internal.NewError(internal.ErrorCodeInvalid, "id is required")
@@ -23,6 +26,7 @@ func (us *UserService) GetUser(ctx context.Context, id string) (User, error) {
 	return us.userStore.GetUser(ctx, id)
 }
 
+// UserCreate is the input for creating a user.
 type UserCreate struct {
 	ID    string `json:"id" validate:"required"`
 	Name  string `json:"name" validate:"required"`
@@ -36,6 +40,7 @@ func (uc UserCreate) validate() error {
 	return nil
 }
 
+// CreateUser creates a new user.
 func (us *UserService) CreateUser(ctx context.Context, input UserCreate) (User, error) {
 	if err := input.validate(); err != nil {
 		return User{}, err
@@ -43,6 +48,7 @@ func (us *UserService) CreateUser(ctx context.Context, input UserCreate) (User, 
 	return us.userStore.CreateUser(ctx, input)
 }
 
+// UserUpdate is the input for updating a user.
 type UserUpdate struct {
 	// https://github.com/go-playground/validator/issues/1308
 	Name  *string `json:"name" validate:"omitnil,min=1"`
@@ -59,6 +65,7 @@ func (uu UserUpdate) validate() error {
 	return nil
 }
 
+// UpdateUser updates a user.
 func (us *UserService) UpdateUser(ctx context.Context, input UserUpdate) (User, error) {
 	if err := input.validate(); err != nil {
 		return User{}, err

@@ -14,16 +14,19 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
+// UserStore is a user store that uses a SQLite database.
 type UserStore struct {
 	db *DB
 }
 
+// NewUserStore creates a new UserStore.
 func NewUserStore(db *DB) *UserStore {
 	return &UserStore{
 		db: db,
 	}
 }
 
+// GetUser gets a user by id.
 func (us *UserStore) GetUser(ctx context.Context, id string) (user.User, error) {
 	logger := log.FromContext(ctx)
 
@@ -46,6 +49,7 @@ func (us *UserStore) GetUser(ctx context.Context, id string) (user.User, error) 
 	return user.User(dest), nil
 }
 
+// CreateUser creates a new user.
 func (us *UserStore) CreateUser(ctx context.Context, input user.UserCreate) (user.User, error) {
 	logger := log.FromContext(ctx)
 
@@ -70,6 +74,7 @@ func (us *UserStore) CreateUser(ctx context.Context, input user.UserCreate) (use
 	return user.User(dest), nil
 }
 
+// UpdateUser updates a user.
 func (us *UserStore) UpdateUser(ctx context.Context, input user.UserUpdate) (user.User, error) {
 	panic("err")
 }

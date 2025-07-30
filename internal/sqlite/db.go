@@ -11,11 +11,13 @@ import (
 	"go.uber.org/zap"
 )
 
+// DB is a wrapper around a sqlx.DB that provides a writer and a reader.
 type DB struct {
 	Writer *sqlx.DB
 	Reader *sqlx.DB
 }
 
+// NewDB creates a new DB.
 func NewDB(ctx context.Context, dbPath string) (*DB, error) {
 	const maxIdleTime time.Duration = 3 * time.Minute
 
@@ -47,6 +49,7 @@ func NewDB(ctx context.Context, dbPath string) (*DB, error) {
 	}, nil
 }
 
+// Migrate runs the migrations.
 func (d *DB) Migrate(ctx context.Context, l *zap.SugaredLogger) error {
 	if err := migrate(ctx, d.Writer.DB, l); err != nil {
 		return fmt.Errorf("sqlite: migrate: %w", err)
@@ -54,6 +57,7 @@ func (d *DB) Migrate(ctx context.Context, l *zap.SugaredLogger) error {
 	return nil
 }
 
+// Close closes the database connections.
 func (d *DB) Close() error {
 	if err := d.Reader.Close(); err != nil {
 		return fmt.Errorf("sqlite: close reader: %w", err)

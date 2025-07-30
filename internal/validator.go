@@ -25,6 +25,7 @@ func init() {
 	})
 }
 
+// ValidateStruct validates a struct and returns a formatted error.
 func ValidateStruct(s any) error {
 	if err := v.Struct(s); err != nil {
 		vErrs, ok := err.(validator.ValidationErrors)
