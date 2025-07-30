@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/cativovo/budget-tracker/internal"
 	"github.com/cativovo/budget-tracker/internal/log"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
 	"github.com/cativovo/budget-tracker/internal/testutil"
@@ -23,10 +24,9 @@ func TestUserStore_CreateUser_GetUser(t *testing.T) {
 	now := time.Now()
 
 	tests := []struct {
-		name    string
-		u       user.UserCreate
-		want    user.User
-		wantErr error
+		name string
+		u    user.UserCreate
+		want user.User
 	}{
 		{
 			name: "create user",
@@ -47,10 +47,6 @@ func TestUserStore_CreateUser_GetUser(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			created, gotErr := us.CreateUser(ctx, tt.u)
-			if tt.wantErr != nil {
-				return
-			}
-
 			assertUser(t, tt.want, created)
 			assert.Nil(t, gotErr)
 
@@ -61,6 +57,13 @@ func TestUserStore_CreateUser_GetUser(t *testing.T) {
 			testutil.AssertWithinDuration(t, now, got.UpdatedAt)
 		})
 	}
+
+	t.Run("user not found", func(t *testing.T) {
+		got, gotErr := us.GetUser(ctx, "not found")
+		assert.Zero(t, got)
+		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(gotErr))
+		assert.Equal(t, "user not found", internal.GetErrorMessage(gotErr))
+	})
 }
 
 func assertUser(t *testing.T, want, got user.User) {
