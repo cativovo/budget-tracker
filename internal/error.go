@@ -35,9 +35,9 @@ func NewError(e ErrorCode, m string) *Error {
 	}
 }
 
-// NewErrorf creates new Error with message
+// Errorf creates new Error with message
 // formatted according to a format specifier
-func NewErrorf(e ErrorCode, format string, args ...any) *Error {
+func Errorf(e ErrorCode, format string, args ...any) *Error {
 	return &Error{
 		code:    e,
 		message: fmt.Sprintf(format, args...),
