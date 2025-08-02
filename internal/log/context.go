@@ -3,11 +3,15 @@ package log
 import (
 	"context"
 
-	"github.com/cativovo/budget-tracker/internal"
 	"go.uber.org/zap"
 )
 
-const contextKeyLogger internal.ContextKey = "logger"
+// The provided key must be comparable and should not be of type string
+// or any other built-in type to avoid collisions between packages using context.
+// Users of WithValue should define their own types for keys.
+type contextKey string
+
+const contextKeyLogger contextKey = "logger"
 
 // WithContext returns a context with the given logger
 func WithContext(
