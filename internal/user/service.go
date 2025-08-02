@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 
+	"github.com/cativovo/budget-tracker/apperror"
 	"github.com/cativovo/budget-tracker/internal"
 )
 
@@ -21,7 +22,7 @@ func NewService(us userStore) *UserService {
 // GetUser gets a user by id.
 func (us *UserService) GetUser(ctx context.Context, id string) (User, error) {
 	if id == "" {
-		return User{}, internal.NewError(internal.ErrorCodeInvalid, "id is required")
+		return User{}, apperror.New(apperror.ErrorCodeInvalid, "id is required")
 	}
 	return us.userStore.GetUser(ctx, id)
 }
@@ -35,7 +36,7 @@ type UserCreate struct {
 
 func (uc UserCreate) validate() error {
 	if err := internal.ValidateStruct(uc); err != nil {
-		return internal.NewError(internal.ErrorCodeInvalid, err.Error())
+		return apperror.New(apperror.ErrorCodeInvalid, err.Error())
 	}
 	return nil
 }
@@ -57,10 +58,10 @@ type UserUpdate struct {
 
 func (uu UserUpdate) validate() error {
 	if err := internal.ValidateStruct(uu); err != nil {
-		return internal.NewError(internal.ErrorCodeInvalid, err.Error())
+		return apperror.New(apperror.ErrorCodeInvalid, err.Error())
 	}
 	if uu.Name == nil && uu.Email == nil {
-		return internal.NewError(internal.ErrorCodeInvalid, "no update fields provided")
+		return apperror.New(apperror.ErrorCodeInvalid, "no update fields provided")
 	}
 	return nil
 }

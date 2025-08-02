@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/apperror"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,7 +30,7 @@ func TestUserService_GetUser(t *testing.T) {
 		},
 		{
 			name:    "no id",
-			wantErr: internal.NewError(internal.ErrorCodeInvalid, "id is required"),
+			wantErr: apperror.New(apperror.ErrorCodeInvalid, "id is required"),
 		},
 	}
 	for _, tt := range tests {
@@ -78,7 +78,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				Name:  "Andres Bonifacio",
 				Email: "andres.bonifacio@katipunan.ph",
 			},
-			wantErr: internal.NewError(internal.ErrorCodeInvalid, "id is required"),
+			wantErr: apperror.New(apperror.ErrorCodeInvalid, "id is required"),
 		},
 		{
 			name: "no name",
@@ -86,7 +86,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				ID:    "2",
 				Email: "andres.bonifacio@katipunan.ph",
 			},
-			wantErr: internal.NewError(internal.ErrorCodeInvalid, "name is required"),
+			wantErr: apperror.New(apperror.ErrorCodeInvalid, "name is required"),
 		},
 		{
 			name: "no email",
@@ -94,7 +94,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				ID:   "2",
 				Name: "Andres Bonifacio",
 			},
-			wantErr: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
+			wantErr: apperror.New(apperror.ErrorCodeInvalid, "invalid email"),
 		},
 		{
 			name: "invalid email",
@@ -103,7 +103,7 @@ func TestUserService_CreateUser(t *testing.T) {
 				Name:  "Andres Bonifacio",
 				Email: "andres.bonifaciokatipunan.ph",
 			},
-			wantErr: internal.NewError(internal.ErrorCodeInvalid, "invalid email"),
+			wantErr: apperror.New(apperror.ErrorCodeInvalid, "invalid email"),
 		},
 	}
 	for _, tt := range tests {

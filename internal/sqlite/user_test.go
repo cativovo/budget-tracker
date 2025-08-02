@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/apperror"
 	"github.com/cativovo/budget-tracker/internal/log"
 	"github.com/cativovo/budget-tracker/internal/sqlite"
 	"github.com/cativovo/budget-tracker/internal/testutil"
@@ -61,8 +61,8 @@ func TestUserStore_CreateUser_GetUser(t *testing.T) {
 	t.Run("user not found", func(t *testing.T) {
 		got, gotErr := us.GetUser(ctx, "not found")
 		assert.Zero(t, got)
-		assert.Equal(t, internal.ErrorCodeNotFound, internal.GetErrorCode(gotErr))
-		assert.Equal(t, "user not found", internal.GetErrorMessage(gotErr))
+		assert.Equal(t, apperror.ErrorCodeNotFound, apperror.Code(gotErr))
+		assert.Equal(t, "user not found", apperror.Message(gotErr))
 	})
 }
 

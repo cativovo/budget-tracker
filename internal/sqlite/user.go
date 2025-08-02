@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cativovo/budget-tracker/internal"
+	"github.com/cativovo/budget-tracker/apperror"
 	"github.com/cativovo/budget-tracker/internal/log"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/huandu/go-sqlbuilder"
@@ -41,7 +41,7 @@ func (us *UserStore) GetUser(ctx context.Context, id string) (user.User, error) 
 	var dest userDest
 	if err := us.db.Reader.GetContext(ctx, &dest, q, args...); err != nil {
 		if err == sql.ErrNoRows {
-			err = internal.NewError(internal.ErrorCodeNotFound, "user not found")
+			err = apperror.New(apperror.ErrorCodeNotFound, "user not found")
 		}
 		return user.User{}, fmt.Errorf("sqlite: get user: %w", err)
 	}
@@ -66,7 +66,7 @@ func (us *UserStore) CreateUser(ctx context.Context, input user.UserCreate) (use
 	if err := us.db.Writer.GetContext(ctx, &dest, q, args...); err != nil {
 		var sqErr sqlite3.Error
 		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			err = internal.NewError(internal.ErrorCodeConflict, "email already taken")
+			err = apperror.New(apperror.ErrorCodeConflict, "email already taken")
 		}
 		return user.User{}, fmt.Errorf("sqlite: insert user: %w", err)
 	}
