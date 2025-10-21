@@ -3,7 +3,6 @@ package sqlite
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"net/url"
 	"time"
 
@@ -52,8 +51,8 @@ func NewDB(ctx context.Context, dbPath string) (*DB, error) {
 }
 
 // Migrate runs the migrations.
-func (d *DB) Migrate(ctx context.Context, l *slog.Logger) error {
-	if err := migrate(ctx, d.Writer.DB, l); err != nil {
+func (d *DB) Migrate(ctx context.Context) error {
+	if err := migrate(ctx, d.Writer.DB); err != nil {
 		return fmt.Errorf("sqlite: migrate: %w", err)
 	}
 	return nil

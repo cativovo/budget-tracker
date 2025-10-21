@@ -25,8 +25,8 @@ func (gl gooseLogger) Fatalf(format string, v ...any) {
 //go:embed all:migrations
 var embedMigrations embed.FS
 
-func migrate(ctx context.Context, db *sql.DB, l *slog.Logger) error {
-	goose.SetLogger(gooseLogger{logger: l})
+func migrate(ctx context.Context, db *sql.DB) error {
+	goose.SetLogger(gooseLogger{logger: slog.Default()})
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return err
 	}

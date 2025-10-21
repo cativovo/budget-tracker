@@ -3,11 +3,11 @@ package sqlite_test
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"os"
 	"testing"
 
 	"github.com/cativovo/budget-tracker/internal/sqlite"
+	"github.com/cativovo/budget-tracker/internal/testutil"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,10 +45,12 @@ func TestDB(t *testing.T) {
 }
 
 func TestMigrate(t *testing.T) {
+	testutil.DisableLogs()
+
 	db, c := mustConnectDB(t)
 	defer c()
 
-	err := db.Migrate(context.Background(), slog.New(slog.DiscardHandler))
+	err := db.Migrate(context.Background())
 	assert.NoError(t, err)
 
 	rows, err := db.Reader.Query("SELECT name FROM sqlite_master WHERE type = 'table'")

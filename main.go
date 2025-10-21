@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	err = db.Migrate(ctx, logger)
+	err = db.Migrate(ctx)
 	if err != nil {
 		logger.Error("Failed to migrate db", log.Error(err))
 		return
