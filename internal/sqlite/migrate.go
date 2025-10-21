@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"embed"
+	"fmt"
 	"log/slog"
 
 	"github.com/pressly/goose/v3"
@@ -14,11 +15,11 @@ type gooseLogger struct {
 }
 
 func (gl gooseLogger) Printf(format string, v ...any) {
-	gl.logger.Info(format, v...)
+	gl.logger.Info(fmt.Sprintf(format, v...))
 }
 
 func (gl gooseLogger) Fatalf(format string, v ...any) {
-	gl.logger.Error(format, v...)
+	gl.logger.Error(fmt.Sprintf(format, v...))
 }
 
 //go:embed all:migrations
