@@ -89,7 +89,7 @@ func mustConnectDB(t *testing.T) (*sqlite.DB, func()) {
 
 	ctx := context.Background()
 	db, err := sqlite.NewDB(ctx, tmp.Name())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	c := func() {
 		n := tmp.Name()
