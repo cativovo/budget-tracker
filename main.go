@@ -11,9 +11,12 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+	ho := &slog.HandlerOptions{
 		AddSource: true,
-	}))
+	}
+	// TODO: make configurable
+	// logger := slog.New(slog.NewJSONHandler(os.Stdout, ho))
+	logger := slog.New(slog.NewTextHandler(os.Stdout, ho))
 	slog.SetDefault(logger)
 
 	ctx := context.Background()
@@ -32,11 +35,20 @@ func main() {
 	userStore := sqlite.NewUserStore(db)
 	userService := user.NewService(userStore)
 
-	u, err := userService.GetUserByID(ctx, "69")
+	gotUser, err := userService.GetUserByID(ctx, "69")
 	if err != nil {
-		logger.Error("Failed to get the user", slog.String("key", "69"), log.Error(err))
-		return
+		logger.Error("User doesn't exists, creating the user")
+
+		gotUser, err = userService.CreateUser(ctx, user.CreateUserInput{
+			ID:    "69",
+			Name:  "Juan Usa",
+			Email: "juanusa@email.com",
+		})
+		if err != nil {
+			logger.Error("Failed to create a user", log.Error(err))
+			return
+		}
 	}
 
-	logger.Info("User get by id", slog.Any("user", u))
+	logger.Info("User get by id", slog.Any("user", gotUser))
 }
