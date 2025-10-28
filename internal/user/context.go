@@ -2,6 +2,8 @@ package user
 
 import (
 	"context"
+
+	"github.com/cativovo/budget-tracker/internal/log"
 )
 
 type ctxKey string
@@ -18,7 +20,9 @@ func WithContext(ctx context.Context, u User) context.Context {
 func FromContext(ctx context.Context) User {
 	v, ok := ctx.Value(ctxKeyUser).(User)
 	if !ok {
-		panic("missing user in context; possible middleware bypass")
+		const msg = "missing user in context; possible middleware bypass"
+		log.FromContext(ctx).Error(msg)
+		panic(msg)
 	}
 	return v
 }

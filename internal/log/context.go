@@ -17,7 +17,7 @@ func WithContext(ctx context.Context, logger *slog.Logger) context.Context {
 	return context.WithValue(ctx, ctxKeyLogger, logger)
 }
 
-// FromContext extracts logger from context.
+// FromContext extracts the logger from context.
 func FromContext(ctx context.Context) *slog.Logger {
 	l, ok := ctx.Value(ctxKeyLogger).(*slog.Logger)
 	if !ok {

@@ -41,20 +41,20 @@ func (us *UserStore) GetUserByID(ctx context.Context, id string) (user.User, err
 	logger := log.FromContext(ctx)
 	logger.Info("Get user by ID", "query", q, "args", args)
 
-	var dst struct {
+	var dest struct {
 		ID        string    `db:"id"`
 		Name      string    `db:"name"`
 		Email     string    `db:"email"`
 		CreatedAt time.Time `db:"created_at"`
 		UpdatedAt time.Time `db:"updated_at"`
 	}
-	if err := us.db.Reader.GetContext(ctx, &dst, q, args...); err != nil {
+	if err := us.db.Reader.GetContext(ctx, &dest, q, args...); err != nil {
 		if err == sql.ErrNoRows {
 			err = apperror.New(apperror.ErrorCodeNotFound, "user not found")
 		}
 		return user.User{}, fmt.Errorf("sqlite: get user by id: %w", err)
 	}
-	return user.User(dst), nil
+	return user.User(dest), nil
 }
 
 // CreateUser creates a new user in the database.
@@ -78,11 +78,11 @@ func (us *UserStore) CreateUser(ctx context.Context, input user.CreateUserInput)
 	logger := log.FromContext(ctx)
 	logger.Info("Create user", "query", q, "args", args)
 
-	var dst struct {
+	var dest struct {
 		CreatedAt time.Time `db:"created_at"`
 		UpdatedAt time.Time `db:"updated_at"`
 	}
-	if err := us.db.Writer.GetContext(ctx, &dst, q, args...); err != nil {
+	if err := us.db.Writer.GetContext(ctx, &dest, q, args...); err != nil {
 		var sqErr sqlite3.Error
 		if errors.As(err, &sqErr) && sqErr.ExtendedCode == sqlite3.ErrConstraintUnique {
 			err = apperror.New(apperror.ErrorCodeConflict, "email already taken")
@@ -94,7 +94,7 @@ func (us *UserStore) CreateUser(ctx context.Context, input user.CreateUserInput)
 		ID:        input.ID,
 		Name:      input.Name,
 		Email:     input.Email,
-		CreatedAt: dst.CreatedAt,
-		UpdatedAt: dst.UpdatedAt,
+		CreatedAt: dest.CreatedAt,
+		UpdatedAt: dest.UpdatedAt,
 	}, nil
 }

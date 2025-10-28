@@ -44,17 +44,17 @@ func TestUserStore_GetUserByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.wantErr != nil {
-				gotUser, err := us.GetUserByID(context.Background(), tt.id)
+				got, err := us.GetUserByID(context.Background(), tt.id)
 				testutil.RequireEqualError(t, tt.wantErr, err)
-				assert.Zero(t, gotUser)
+				assert.Zero(t, got)
 				return
 			}
 
-			wantUser := mustCreateUser(t, db, tt.createUserInput)
-			gotUser, err := us.GetUserByID(context.Background(), tt.id)
+			want := mustCreateUser(t, db, tt.createUserInput)
+			got, err := us.GetUserByID(context.Background(), tt.id)
 			require.NoError(t, err)
 
-			assertUser(t, wantUser, gotUser)
+			assertUser(t, want, got)
 		})
 	}
 }
@@ -91,22 +91,22 @@ func TestUserStore_CreateUser(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotUser, err := us.CreateUser(context.Background(), tt.createUserInput)
+			got, err := us.CreateUser(context.Background(), tt.createUserInput)
 
 			if tt.wantErr != nil {
 				testutil.RequireEqualError(t, tt.wantErr, err)
-				assert.Zero(t, gotUser)
+				assert.Zero(t, got)
 
-				wantUser, err := us.GetUserByID(context.Background(), gotUser.ID)
-				assert.Zero(t, wantUser)
+				want, err := us.GetUserByID(context.Background(), got.ID)
+				assert.Zero(t, want)
 				assert.Error(t, err)
 				return
 			}
 
-			wantUser, err := us.GetUserByID(context.Background(), gotUser.ID)
+			wantUser, err := us.GetUserByID(context.Background(), got.ID)
 			require.NoError(t, err)
 
-			assertUser(t, wantUser, gotUser)
+			assertUser(t, wantUser, got)
 		})
 	}
 }
@@ -121,12 +121,4 @@ func assertUser(t *testing.T, want, got user.User) bool {
 	want.UpdatedAt = time.Time{}
 
 	return assert.Equal(t, want, got)
-}
-
-func mustCreateUser(t *testing.T, db *sqlite.DB, input user.CreateUserInput) user.User {
-	t.Helper()
-	us := sqlite.NewUserStore(db)
-	u, err := us.CreateUser(context.Background(), input)
-	require.NoError(t, err)
-	return u
 }
