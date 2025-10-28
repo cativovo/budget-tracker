@@ -13,7 +13,7 @@ import (
 
 func TestServer_GetCategoryByID(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
-		want := mustCreateCategory(t, nil)
+		want := newCreateCategory(t, nil)
 		got, resp, _ := fetchFromServer[category.Category](t, http.MethodGet, "/api/category/"+want.ID, nil, nil)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, want, got)

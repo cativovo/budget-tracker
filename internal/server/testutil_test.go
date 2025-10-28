@@ -60,7 +60,7 @@ func fetch[T any](t *testing.T, method string, url string, header http.Header, p
 	return data, resp, nil
 }
 
-func mustCreateCategory(t *testing.T, header http.Header) category.Category {
+func newCreateCategory(t *testing.T, header http.Header) category.Category {
 	t.Helper()
 
 	c, resp, _ := fetchFromServer[category.Category](t, http.MethodPost, "/api/category", header, category.CreateCategoryInput{
