@@ -25,7 +25,7 @@ func (s *Service) GetCategoryByID(ctx context.Context, id string) (Category, err
 // CreateCategoryInput represents the input data needed to create a category.
 type CreateCategoryInput struct {
 	Name  string `json:"name" validate:"required" doc:"Name of category" example:"food"`
-	Color string `json:"color" validate:"required" doc:"Color of category in hex" example:"#696969"`
+	Color string `json:"color" validate:"required,hexcolor" doc:"Color of category in hex" example:"#696969"`
 	Icon  string `json:"icon" validate:"required" doc:"Icon of category" example:"food-icon"`
 }
 

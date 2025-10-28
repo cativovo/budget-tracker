@@ -91,10 +91,24 @@ func TestServer_CreateCategory(t *testing.T) {
 				Icon:  "",
 			},
 		},
+		{
+			name:           "invalid hex color",
+			wantStatusCode: http.StatusBadRequest,
+			wantErrModel: &huma.ErrorModel{
+				Title:  "Bad Request",
+				Status: http.StatusBadRequest,
+				Detail: "color must have a valid hex color value",
+			},
+			createCategoryInput: category.CreateCategoryInput{
+				Name:  gofakeit.Noun(),
+				Color: "white",
+				Icon:  gofakeit.Emoji(),
+			},
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(t.Name(), func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			createdCategory, createResp, createModel := fetchFromServer[category.Category](t, http.MethodPost, "/api/category", nil, tt.createCategoryInput)
 			require.Equal(t, tt.wantStatusCode, createResp.StatusCode)
 			require.Equal(t, tt.wantErrModel, createModel)
