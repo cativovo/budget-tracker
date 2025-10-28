@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/brianvoe/gofakeit/v7"
+	"github.com/cativovo/budget-tracker/internal/testutil"
 	"github.com/cativovo/budget-tracker/internal/user"
 	"github.com/stretchr/testify/assert"
 )
@@ -24,6 +25,7 @@ func TestWithAndFromContext(t *testing.T) {
 		assert.Equal(t, wantUser, gotUser)
 	})
 	t.Run("panic", func(t *testing.T) {
+		testutil.DisableLogs()
 		defer func() {
 			msg := recover()
 			assert.Equal(t, "missing user in context; possible middleware bypass", msg)

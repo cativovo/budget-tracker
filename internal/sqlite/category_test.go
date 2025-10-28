@@ -16,7 +16,7 @@ import (
 
 func TestCategoryStore_GetCategoryByID(t *testing.T) {
 	testutil.DisableLogs()
-	db, c := testutil.NewTestDB(t)
+	db, c := newTestDB(t)
 	defer c()
 
 	u := newUser(t, db)
@@ -46,7 +46,7 @@ func TestCategoryStore_GetCategoryByID(t *testing.T) {
 
 func TestCategoryStore_CreateCategory(t *testing.T) {
 	testutil.DisableLogs()
-	db, c := testutil.NewTestDB(t)
+	db, c := newTestDB(t)
 	defer c()
 
 	u := newUser(t, db)
