@@ -31,3 +31,15 @@ func AssertEqualError(t *testing.T, want, got error) bool {
 	return assert.Equal(t, apperror.Code(want), apperror.Code(got)) &&
 		assert.Equal(t, apperror.Message(want), apperror.Message(got))
 }
+
+// AssertFieldUpdate asserts that the field was updated if field is non-nil; otherwise, it remains unchanged.
+func AssertFieldUpdate[T any](t *testing.T, f *T, before, after T) {
+	t.Helper()
+
+	if f != nil {
+		assert.Equal(t, *f, after)
+		assert.NotEqual(t, before, after)
+	} else {
+		assert.Equal(t, before, after)
+	}
+}

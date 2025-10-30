@@ -45,6 +45,14 @@ func mustCreateCategory(t *testing.T, db *sqlite.DB, u user.User, input category
 	return c
 }
 
+func mustGetCategory(t *testing.T, db *sqlite.DB, u user.User, id string) category.Category {
+	t.Helper()
+	cs := sqlite.NewCategoryStore(db)
+	c, err := cs.GetCategoryByID(user.WithContext(context.Background(), u), id)
+	require.NoError(t, err)
+	return c
+}
+
 func mustCreateUser(t *testing.T, db *sqlite.DB, input user.CreateUserInput) user.User {
 	t.Helper()
 	us := sqlite.NewUserStore(db)

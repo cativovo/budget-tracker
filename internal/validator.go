@@ -71,7 +71,7 @@ func getMessage(v any, err validator.FieldError) string {
 		p := err.Param()
 		// https://github.com/go-playground/validator/issues/1308
 		if p == "1" {
-			return fmt.Sprintf("%s is required", err.Field())
+			return fmt.Sprintf("%s cannot be empty", err.Field())
 		}
 
 		return fmt.Sprintf("%s must be at least %s", err.Field(), err.Param())
